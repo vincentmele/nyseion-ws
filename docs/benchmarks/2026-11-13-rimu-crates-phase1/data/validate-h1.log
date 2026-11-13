@@ -11,7 +11,7 @@
 #2 DONE 0.0s
 
 #3 [internal] load metadata for docker.io/library/rust:1.95-bookworm
-#3 DONE 0.7s
+#3 DONE 0.8s
 
 #4 [internal] load .dockerignore
 #4 transferring context: 2B done
@@ -24,18 +24,18 @@
 #6 CACHED
 
 #7 [internal] load build context
-#7 transferring context: 6.74MB 0.2s done
-#7 DONE 0.2s
+#7 transferring context: 800.23kB 0.0s done
+#7 DONE 0.1s
 
 #8 [build  2/11] RUN rustup default nightly-2026-10-12
-#8 0.363 info: syncing channel updates for nightly-2026-10-12-x86_64-unknown-linux-gnu
-#8 2.536 info: latest update on 2026-10-12 for version 1.101.0-nightly (080cc2714 2026-10-11)
-#8 2.536 info: downloading 3 components
-#8 24.42 info: default toolchain set to nightly-2026-10-12-x86_64-unknown-linux-gnu
-#8 24.42 
-#8 24.43   nightly-2026-10-12-x86_64-unknown-linux-gnu installed - rustc 1.101.0-nightly (080cc2714 2026-10-11)
-#8 24.43 
-#8 DONE 25.1s
+#8 0.306 info: syncing channel updates for nightly-2026-10-12-x86_64-unknown-linux-gnu
+#8 0.669 info: latest update on 2026-10-12 for version 1.101.0-nightly (080cc2714 2026-10-11)
+#8 0.669 info: downloading 3 components
+#8 13.71 info: default toolchain set to nightly-2026-10-12-x86_64-unknown-linux-gnu
+#8 13.71 
+#8 13.72   nightly-2026-10-12-x86_64-unknown-linux-gnu installed - rustc 1.101.0-nightly (080cc2714 2026-10-11)
+#8 13.72 
+#8 DONE 14.6s
 
 #9 [build  3/11] WORKDIR /app
 #9 DONE 0.2s
@@ -56,163 +56,163 @@
 #14 DONE 0.2s
 
 #15 [build  9/11] RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src/ target/release/httparena-rimu-ws-h1* target/release/deps/httparena_rimu_ws_h1*
-#15 0.390     Updating crates.io index
-#15 0.661  Downloading crates ...
-#15 0.729   Downloaded bitflags v2.13.2
-#15 0.738   Downloaded alloc-stdlib v0.3.0
-#15 0.740   Downloaded untrusted v0.9.0
-#15 0.743   Downloaded cfg-if v1.0.5
-#15 0.745   Downloaded alloc-no-stdlib v3.0.0
-#15 0.747   Downloaded itoa v1.0.18
-#15 0.752   Downloaded find-msvc-tools v0.1.15
-#15 0.755   Downloaded foldhash v0.2.0
-#15 0.757   Downloaded quote v1.0.47
-#15 0.761   Downloaded shlex v2.0.1
-#15 0.763   Downloaded zmij v1.0.23
-#15 0.766   Downloaded simdutf8 v0.1.5
-#15 0.769   Downloaded unicode-ident v1.0.27
-#15 0.773   Downloaded getrandom v0.2.17
-#15 0.778   Downloaded crc32fast v1.5.5
-#15 0.781   Downloaded serde_derive v1.0.229
-#15 0.786   Downloaded httparse v1.10.1
-#15 0.790   Downloaded proc-macro2 v1.0.107
-#15 0.794   Downloaded socket2 v0.6.5
-#15 0.797   Downloaded serde_core v1.0.229
-#15 0.801   Downloaded serde v1.0.229
-#15 0.806   Downloaded io-uring v0.7.15
-#15 0.812   Downloaded memchr v2.8.3
-#15 0.820   Downloaded cc v1.11.1
-#15 0.827   Downloaded serde_json v1.0.154
-#15 0.838   Downloaded hashbrown v0.17.1
-#15 0.847   Downloaded zlib-rs v0.6.8
-#15 0.855   Downloaded brotli-decompressor v6.3.0
-#15 0.867   Downloaded syn v3.0.9
-#15 0.883   Downloaded brotli v9.1.1
-#15 0.906   Downloaded libc v0.2.191
-#15 0.983   Downloaded ring v0.17.14
-#15 1.097    Compiling proc-macro2 v1.0.107
-#15 1.097    Compiling libc v0.2.191
-#15 1.097    Compiling serde_core v1.0.229
-#15 1.097    Compiling unicode-ident v1.0.27
-#15 1.097    Compiling cfg-if v1.0.5
-#15 1.097    Compiling quote v1.0.47
-#15 1.099    Compiling shlex v2.0.1
-#15 1.103    Compiling find-msvc-tools v0.1.15
-#15 1.105    Compiling zmij v1.0.23
-#15 1.106    Compiling crc32fast v1.5.5
-#15 1.108    Compiling io-uring v0.7.15
-#15 1.110    Compiling serde v1.0.229
-#15 1.113    Compiling serde_json v1.0.154
-#15 1.115    Compiling alloc-no-stdlib v3.0.0
-#15 1.115    Compiling foldhash v0.2.0
-#15 1.118    Compiling untrusted v0.9.0
-#15 1.118    Compiling bitflags v2.13.2
-#15 1.118    Compiling itoa v1.0.18
-#15 1.124    Compiling memchr v2.8.3
-#15 1.124    Compiling rimu-http1 v0.1.0 (/app/rimu-http1)
-#15 1.124    Compiling simdutf8 v0.1.5
-#15 1.124    Compiling zlib-rs v0.6.8
-#15 1.221    Compiling alloc-stdlib v0.3.0
-#15 1.259    Compiling cc v1.11.1
-#15 1.282    Compiling brotli-decompressor v6.3.0
-#15 1.408    Compiling rimu-gzip v0.1.0 (/app/rimu-gzip/rimu-gzip)
-#15 1.485    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
-#15 1.794    Compiling syn v3.0.9
-#15 2.191    Compiling getrandom v0.2.17
-#15 2.193    Compiling socket2 v0.6.5
-#15 2.264    Compiling ring v0.17.14
-#15 2.483    Compiling brotli v9.1.1
-#15 3.271    Compiling hashbrown v0.17.1
-#15 3.277    Compiling serde_derive v1.0.229
-#15 10.25    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
-#15 19.19    Compiling httparena-rimu-ws-h1 v0.1.0 (/app)
-#15 22.01 warning: unused dependency `brotli`
-#15 22.01  --> Cargo.toml:9:1
-#15 22.01   |
-#15 22.01 9 | brotli = { default-features = false, features = ["std"], version = "9.1" }
-#15 22.01   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#15 22.01   |
-#15 22.01   = note: `cargo::unused_dependencies` is set to `warn` by default
-#15 22.01 help: consider removing the dependency on `brotli`
-#15 22.01 warning: unused dependency `rimu-ws`
-#15 22.01  --> Cargo.toml:8:1
-#15 22.01   |
-#15 22.01 8 | rimu-ws = { default-features = false, features = ["crypto-ring", "gzip-encoder", "http1-server-framework", "io-uring", "json-writer", "optimizations-std", "serde", "serde_json"], path = "rimu-ws/wtx" }
-#15 22.01   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#15 22.01   |
-#15 22.01 help: consider removing the dependency on `rimu-ws`
-#15 22.01 warning: unused dependency `zlib-rs`
-#15 22.01   --> Cargo.toml:12:1
-#15 22.01    |
-#15 22.01 12 | zlib-rs = { default-features = false, features = ["rust-allocator"], version = "0.6" }
-#15 22.01    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#15 22.01    |
-#15 22.01 help: consider removing the dependency on `zlib-rs`
-#15 22.01 warning: `httparena-rimu-ws-h1` (manifest) generated 3 warnings
-#15 22.01     Finished `release` profile [optimized] target(s) in 21.67s
-#15 DONE 23.0s
+#15 0.438     Updating crates.io index
+#15 0.879  Downloading crates ...
+#15 1.025   Downloaded alloc-stdlib v0.3.0
+#15 1.043   Downloaded bitflags v2.13.2
+#15 1.062   Downloaded alloc-no-stdlib v3.0.0
+#15 1.068   Downloaded cfg-if v1.0.5
+#15 1.074   Downloaded itoa v1.0.18
+#15 1.095   Downloaded untrusted v0.9.0
+#15 1.104   Downloaded quote v1.0.47
+#15 1.107   Downloaded find-msvc-tools v0.1.15
+#15 1.109   Downloaded shlex v2.0.1
+#15 1.111   Downloaded simdutf8 v0.1.5
+#15 1.114   Downloaded zmij v1.0.23
+#15 1.116   Downloaded foldhash v0.2.0
+#15 1.118   Downloaded getrandom v0.2.17
+#15 1.122   Downloaded httparse v1.10.1
+#15 1.126   Downloaded serde_derive v1.0.229
+#15 1.130   Downloaded crc32fast v1.5.5
+#15 1.133   Downloaded unicode-ident v1.0.27
+#15 1.137   Downloaded proc-macro2 v1.0.107
+#15 1.141   Downloaded socket2 v0.6.5
+#15 1.143   Downloaded serde_core v1.0.229
+#15 1.147   Downloaded serde v1.0.229
+#15 1.151   Downloaded memchr v2.8.3
+#15 1.159   Downloaded io-uring v0.7.15
+#15 1.163   Downloaded cc v1.11.1
+#15 1.169   Downloaded serde_json v1.0.154
+#15 1.179   Downloaded hashbrown v0.17.1
+#15 1.185   Downloaded zlib-rs v0.6.8
+#15 1.192   Downloaded brotli-decompressor v6.3.0
+#15 1.203   Downloaded syn v3.0.9
+#15 1.218   Downloaded brotli v9.1.1
+#15 1.238   Downloaded libc v0.2.191
+#15 1.298   Downloaded ring v0.17.14
+#15 1.399    Compiling proc-macro2 v1.0.107
+#15 1.399    Compiling libc v0.2.191
+#15 1.399    Compiling serde_core v1.0.229
+#15 1.399    Compiling cfg-if v1.0.5
+#15 1.399    Compiling quote v1.0.47
+#15 1.399    Compiling unicode-ident v1.0.27
+#15 1.402    Compiling shlex v2.0.1
+#15 1.403    Compiling find-msvc-tools v0.1.15
+#15 1.407    Compiling zmij v1.0.23
+#15 1.407    Compiling crc32fast v1.5.5
+#15 1.411    Compiling serde v1.0.229
+#15 1.411    Compiling io-uring v0.7.15
+#15 1.411    Compiling serde_json v1.0.154
+#15 1.413    Compiling alloc-no-stdlib v3.0.0
+#15 1.415    Compiling foldhash v0.2.0
+#15 1.419    Compiling untrusted v0.9.0
+#15 1.421    Compiling bitflags v2.13.2
+#15 1.421    Compiling itoa v1.0.18
+#15 1.424    Compiling memchr v2.8.3
+#15 1.424    Compiling rimu-http1 v0.1.0 (/app/rimu-http1)
+#15 1.424    Compiling simdutf8 v0.1.5
+#15 1.430    Compiling zlib-rs v0.6.8
+#15 1.578    Compiling alloc-stdlib v0.3.0
+#15 1.626    Compiling cc v1.11.1
+#15 1.647    Compiling brotli-decompressor v6.3.0
+#15 1.842    Compiling rimu-gzip v0.1.0 (/app/rimu-gzip/rimu-gzip)
+#15 1.924    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
+#15 2.264    Compiling syn v3.0.9
+#15 2.572    Compiling getrandom v0.2.17
+#15 2.572    Compiling socket2 v0.6.5
+#15 2.732    Compiling ring v0.17.14
+#15 2.860    Compiling brotli v9.1.1
+#15 3.784    Compiling serde_derive v1.0.229
+#15 4.154    Compiling hashbrown v0.17.1
+#15 11.23    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
+#15 21.82    Compiling httparena-rimu-ws-h1 v0.1.0 (/app)
+#15 24.03 warning: unused dependency `brotli`
+#15 24.03  --> Cargo.toml:9:1
+#15 24.03   |
+#15 24.03 9 | brotli = { default-features = false, features = ["std"], version = "9.1" }
+#15 24.03   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#15 24.03   |
+#15 24.03   = note: `cargo::unused_dependencies` is set to `warn` by default
+#15 24.03 help: consider removing the dependency on `brotli`
+#15 24.03 warning: unused dependency `rimu-ws`
+#15 24.03  --> Cargo.toml:8:1
+#15 24.03   |
+#15 24.03 8 | rimu-ws = { default-features = false, features = ["crypto-ring", "gzip-encoder", "http1-server-framework", "io-uring", "json-writer", "optimizations-std", "serde", "serde_json"], path = "rimu-ws/wtx" }
+#15 24.03   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#15 24.03   |
+#15 24.03 help: consider removing the dependency on `rimu-ws`
+#15 24.03 warning: unused dependency `zlib-rs`
+#15 24.03   --> Cargo.toml:12:1
+#15 24.03    |
+#15 24.03 12 | zlib-rs = { default-features = false, features = ["rust-allocator"], version = "0.6" }
+#15 24.03    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#15 24.03    |
+#15 24.03 help: consider removing the dependency on `zlib-rs`
+#15 24.03 warning: `httparena-rimu-ws-h1` (manifest) generated 3 warnings
+#15 24.03     Finished `release` profile [optimized] target(s) in 23.75s
+#15 DONE 24.9s
 
 #16 [build 10/11] COPY src ./src
 #16 DONE 0.2s
 
 #17 [build 11/11] RUN RUSTFLAGS="-C target-cpu=native" cargo build --release
-#17 0.383    Compiling proc-macro2 v1.0.107
-#17 0.383    Compiling libc v0.2.191
-#17 0.383    Compiling cfg-if v1.0.5
-#17 0.383    Compiling quote v1.0.47
-#17 0.384    Compiling unicode-ident v1.0.27
+#17 0.386    Compiling proc-macro2 v1.0.107
+#17 0.386    Compiling libc v0.2.191
+#17 0.386    Compiling unicode-ident v1.0.27
 #17 0.386    Compiling serde_core v1.0.229
-#17 0.387    Compiling zmij v1.0.23
-#17 0.388    Compiling find-msvc-tools v0.1.15
-#17 0.389    Compiling shlex v2.0.1
-#17 0.389    Compiling crc32fast v1.5.5
-#17 0.390    Compiling serde v1.0.229
-#17 0.392    Compiling io-uring v0.7.15
-#17 0.393    Compiling alloc-no-stdlib v3.0.0
-#17 0.393    Compiling serde_json v1.0.154
-#17 0.394    Compiling bitflags v2.13.2
-#17 0.394    Compiling untrusted v0.9.0
-#17 0.396    Compiling foldhash v0.2.0
-#17 0.399    Compiling itoa v1.0.18
-#17 0.399    Compiling memchr v2.8.3
-#17 0.399    Compiling simdutf8 v0.1.5
-#17 0.400    Compiling rimu-http1 v0.1.0 (/app/rimu-http1)
-#17 0.400    Compiling zlib-rs v0.6.8
-#17 0.468    Compiling alloc-stdlib v0.3.0
-#17 0.552    Compiling brotli-decompressor v6.3.0
-#17 0.657    Compiling cc v1.11.1
-#17 0.847    Compiling rimu-gzip v0.1.0 (/app/rimu-gzip/rimu-gzip)
-#17 1.007    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
-#17 1.571    Compiling syn v3.0.9
-#17 1.938    Compiling brotli v9.1.1
-#17 2.039    Compiling ring v0.17.14
-#17 2.118    Compiling getrandom v0.2.17
-#17 2.118    Compiling socket2 v0.6.5
-#17 3.547    Compiling serde_derive v1.0.229
-#17 3.791    Compiling hashbrown v0.17.1
-#17 8.776    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
-#17 16.64    Compiling httparena-rimu-ws-h1 v0.1.0 (/app)
-#17 29.48 warning: unused dependency `zlib-rs`
-#17 29.48   --> Cargo.toml:12:1
-#17 29.48    |
-#17 29.48 12 | zlib-rs = { default-features = false, features = ["rust-allocator"], version = "0.6" }
-#17 29.48    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#17 29.48    |
-#17 29.48    = note: `cargo::unused_dependencies` is set to `warn` by default
-#17 29.48 help: consider removing the dependency on `zlib-rs`
-#17 29.48 warning: `httparena-rimu-ws-h1` (manifest) generated 1 warning
-#17 29.48     Finished `release` profile [optimized] target(s) in 29.16s
-#17 DONE 29.9s
+#17 0.386    Compiling cfg-if v1.0.5
+#17 0.386    Compiling quote v1.0.47
+#17 0.386    Compiling find-msvc-tools v0.1.15
+#17 0.386    Compiling shlex v2.0.1
+#17 0.389    Compiling zmij v1.0.23
+#17 0.395    Compiling crc32fast v1.5.5
+#17 0.397    Compiling serde v1.0.229
+#17 0.397    Compiling alloc-no-stdlib v3.0.0
+#17 0.397    Compiling io-uring v0.7.15
+#17 0.400    Compiling serde_json v1.0.154
+#17 0.402    Compiling foldhash v0.2.0
+#17 0.403    Compiling itoa v1.0.18
+#17 0.403    Compiling memchr v2.8.3
+#17 0.403    Compiling bitflags v2.13.2
+#17 0.403    Compiling untrusted v0.9.0
+#17 0.403    Compiling simdutf8 v0.1.5
+#17 0.403    Compiling rimu-http1 v0.1.0 (/app/rimu-http1)
+#17 0.416    Compiling zlib-rs v0.6.8
+#17 0.523    Compiling alloc-stdlib v0.3.0
+#17 0.607    Compiling brotli-decompressor v6.3.0
+#17 0.642    Compiling cc v1.11.1
+#17 0.845    Compiling rimu-gzip v0.1.0 (/app/rimu-gzip/rimu-gzip)
+#17 1.028    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
+#17 1.362    Compiling syn v3.0.9
+#17 1.826    Compiling getrandom v0.2.17
+#17 1.826    Compiling socket2 v0.6.5
+#17 2.026    Compiling ring v0.17.14
+#17 2.168    Compiling brotli v9.1.1
+#17 3.155    Compiling serde_derive v1.0.229
+#17 3.217    Compiling hashbrown v0.17.1
+#17 9.920    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
+#17 19.48    Compiling httparena-rimu-ws-h1 v0.1.0 (/app)
+#17 35.99 warning: unused dependency `zlib-rs`
+#17 35.99   --> Cargo.toml:12:1
+#17 35.99    |
+#17 35.99 12 | zlib-rs = { default-features = false, features = ["rust-allocator"], version = "0.6" }
+#17 35.99    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#17 35.99    |
+#17 35.99    = note: `cargo::unused_dependencies` is set to `warn` by default
+#17 35.99 help: consider removing the dependency on `zlib-rs`
+#17 35.99 warning: `httparena-rimu-ws-h1` (manifest) generated 1 warning
+#17 35.99     Finished `release` profile [optimized] target(s) in 35.66s
+#17 DONE 36.3s
 
 #18 [stage-1 2/2] COPY --from=build /app/target/release/httparena-rimu-ws-h1 /server
 #18 DONE 0.1s
 
 #19 exporting to image
 #19 exporting layers 0.1s done
-#19 writing image sha256:e9a7a79188ca2b8ea737def5bcb348473bc968a99f9856e89f2c7bff01e7544f done
+#19 writing image sha256:dda1cfa57f30b9b761c268997002dcb474579a65904f1a86d8bb882ab39af7a5 done
 #19 naming to docker.io/library/httparena-rimu-ws-h1 done
 #19 DONE 0.1s
-3d2c696429cb960a0213acd40dcd165776e4b6bda70d6ce10f3f56392bdad1e5
+96deeb9f8eb7a7cc2f345d8d479b9db727e785d7f4f12906cfc4f29874410965
 [wait] Waiting for server...
 [ready] Server is up
 [test] baseline endpoints
@@ -225,11 +225,11 @@ Note: Unnecessary use of -X or --request, POST is already inferred.
 Note: Unnecessary use of -X or --request, POST is already inferred.
   PASS [POST /baseline11 Content-Type] (Content-Type: text/plain)
 [test] baseline anti-cheat (randomized inputs)
-  PASS [GET /baseline11?a=249&b=689 (random)]
+  PASS [GET /baseline11?a=520&b=410 (random)]
 Note: Unnecessary use of -X or --request, POST is already inferred.
-  PASS [POST body=126 (cache check 1)]
+  PASS [POST body=708 (cache check 1)]
 Note: Unnecessary use of -X or --request, POST is already inferred.
-  PASS [POST body=568 (cache check 2)]
+  PASS [POST body=516 (cache check 2)]
 [test] baseline TCP fragmentation
   PASS [GET /baseline11 — split request line]
   PASS [GET /baseline11 — split before headers]
@@ -242,25 +242,25 @@ Note: Unnecessary use of -X or --request, POST is already inferred.
   PASS [frag: GET, minimal] all 73 offsets -> 200 '55'
   PASS [frag: GET, several headers] all 148 offsets -> 200 '55'
   PASS [frag: GET, lower-cased field names] all 101 offsets -> 200 '55'
-  PASS [frag: GET, randomized query] all 75 offsets -> 200 '1638'
+  PASS [frag: GET, randomized query] all 75 offsets -> 200 '1182'
   PASS [frag: POST, Content-Length] all 121 offsets -> 200 '75'
   PASS [frag: POST, lower-cased content-length] all 121 offsets -> 200 '75'
-  PASS [frag: POST, randomized body] all 123 offsets -> 200 '1707'
+  PASS [frag: POST, randomized body] all 123 offsets -> 200 '1244'
   PASS [frag: POST, chunked] all 140 offsets -> 200 '75'
   PASS [frag: POST, chunked in two chunks] all 145 offsets -> 200 '75'
 
 === Frag Results: 9 passed, 0 failed ===
 [test] async delay endpoint
-  PASS [GET /delay/45 (random)] (0.045497s)
-  PASS [GET /delay/45 Content-Type] (Content-Type: text/plain)
+  PASS [GET /delay/58 (random)] (0.058840s)
+  PASS [GET /delay/58 Content-Type] (Content-Type: text/plain)
   PASS [GET /delay/0]
 [test] async delay is driven by the parameter
-  PASS [GET /delay/10] (0.010437s)
-  PASS [GET /delay/500] (0.500464s)
-  PASS [/delay/500 waits ~490ms longer than /delay/10] (0.010437s vs 0.500464s)
-  PASS [/delay/10 is not a constant long sleep] (0.010437s)
+  PASS [GET /delay/10] (0.010841s)
+  PASS [GET /delay/500] (0.501022s)
+  PASS [/delay/500 waits ~490ms longer than /delay/10] (0.010841s vs 0.501022s)
+  PASS [/delay/10 is not a constant long sleep] (0.010841s)
 [test] async concurrent delays
-  PASS [32 overlapping requests, 32 different delays] (32 concurrent, 0.52s wall)
+  PASS [32 overlapping requests, 32 different delays] (32 concurrent, 0.54s wall)
 [test] json endpoint
   PASS [GET /json/{count}?m=X] (4 random counts × multipliers, items matched against data/dataset.json)
   PASS [GET /json Content-Type] (Content-Type: application/json)
