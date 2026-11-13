@@ -1157,3 +1157,77 @@ mod serde {
     }
   }
 }
+
+// SAFETY: `as_ptr_mut` points to `capacity` bytes, the first `len` initialized; `reserve` makes room
+// for `additional` more (or does not return); `set_len` forwards with the same contract.
+#[cfg(feature = "json-writer")]
+unsafe impl rimu_json::JsonBuffer for Vector<usize, u8> {
+  #[inline]
+  fn as_mut_ptr(&mut self) -> *mut u8 {
+    self.as_ptr_mut()
+  }
+
+  #[inline]
+  fn len(&self) -> usize {
+    Vector::len(self)
+  }
+
+  #[inline]
+  fn capacity(&self) -> usize {
+    Vector::capacity(self)
+  }
+
+  #[inline]
+  unsafe fn set_len(&mut self, len: usize) {
+    // SAFETY: the caller guarantees `len <= capacity` and that the first `len` bytes are
+    // initialized, `Vector::set_len`'s contract.
+    unsafe { Vector::set_len(self, len) }
+  }
+
+  #[inline]
+  fn reserve(&mut self, additional: usize) {
+    if Vector::reserve(self, additional).is_err() {
+      // As `Vec` fails: the writer cannot continue without the room.
+      alloc::alloc::handle_alloc_error(
+        core::alloc::Layout::array::<u8>(additional).unwrap_or(core::alloc::Layout::new::<u8>()),
+      );
+    }
+  }
+}
+
+#[cfg(all(test, feature = "json-writer", feature = "serde_json"))]
+mod json_buffer_tests {
+  use crate::collections::VectorUsize;
+  use alloc::vec::Vec;
+  use rimu_json::JsonWriter;
+
+  #[derive(serde::Serialize)]
+  struct Object {
+    k: &'static str,
+    n: i64,
+  }
+
+  #[test]
+  fn json_writer_grows_a_vector_from_empty() {
+    let objects: Vec<Object> = (0..10_000).map(|_| Object { k: "v\"", n: -12 }).collect();
+    let mut buf = VectorUsize::<u8>::new();
+    {
+      let mut w = JsonWriter::new(&mut buf);
+      w.raw("[");
+      for (idx, object) in objects.iter().enumerate() {
+        if idx > 0 {
+          w.raw(",");
+        }
+        w.raw("{\"k\":");
+        w.str(object.k);
+        w.raw(",\"n\":");
+        w.i64(object.n);
+        w.raw("}");
+      }
+      w.raw("]");
+    }
+    let expected = serde_json::to_vec(&objects).unwrap();
+    assert_eq!(buf.len(), expected.len());
+    assert_eq!(buf.as_slice(), expected.as_slice());
+  }
+}

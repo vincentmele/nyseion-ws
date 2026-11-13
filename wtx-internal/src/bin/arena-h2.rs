@@ -718,39 +718,40 @@ fn write_json(
   let mut w = JsonWriter::new(buf);
   // Every item and tag is written with a trailing comma; `end_seq` turns the last one into the
   // closing bracket.
-  w.raw(b"{\"items\":[")?;
+  w.raw("{\"items\":[");
   for el in dataset.iter().take(clamped) {
-    w.raw(b"{\"id\":")?;
-    w.i64(el.id)?;
-    w.raw(b",\"name\":\"")?;
-    w.str_contents(&el.name)?;
-    w.raw(b"\",\"category\":\"")?;
-    w.str_contents(&el.category)?;
-    w.raw(b"\",\"price\":")?;
-    w.i64(el.price)?;
-    w.raw(b",\"quantity\":")?;
-    w.i64(el.quantity)?;
-    w.raw(b",\"active\":")?;
-    w.bool(el.active)?;
-    w.raw(b",\"tags\":[")?;
+    w.raw("{\"id\":");
+    w.i64(el.id);
+    w.raw(",\"name\":\"");
+    w.str_contents(&el.name);
+    w.raw("\",\"category\":\"");
+    w.str_contents(&el.category);
+    w.raw("\",\"price\":");
+    w.i64(el.price);
+    w.raw(",\"quantity\":");
+    w.i64(el.quantity);
+    w.raw(",\"active\":");
+    w.bool(el.active);
+    w.raw(",\"tags\":[");
     for tag in el.tags.iter() {
-      w.raw(b"\"")?;
-      w.str_contents(tag)?;
-      w.raw(b"\",")?;
+      w.raw("\"");
+      w.str_contents(tag);
+      w.raw("\",");
     }
-    w.end_seq(b']')?;
-    w.raw(b",\"rating\":{\"score\":")?;
-    w.i64(el.rating.score)?;
-    w.raw(b",\"count\":")?;
-    w.i64(el.rating.count)?;
-    w.raw(b"},\"total\":")?;
-    w.i64(el.price.wrapping_mul(el.quantity).wrapping_mul(m))?;
-    w.raw(b"},")?;
+    w.end_seq(b']');
+    w.raw(",\"rating\":{\"score\":");
+    w.i64(el.rating.score);
+    w.raw(",\"count\":");
+    w.i64(el.rating.count);
+    w.raw("},\"total\":");
+    w.i64(el.price.wrapping_mul(el.quantity).wrapping_mul(m));
+    w.raw("},");
   }
-  w.end_seq(b']')?;
-  w.raw(b",\"count\":")?;
-  w.u64(u64::try_from(clamped).unwrap_or(u64::MAX))?;
-  w.raw(b"}")
+  w.end_seq(b']');
+  w.raw(",\"count\":");
+  w.u64(u64::try_from(clamped).unwrap_or(u64::MAX));
+  w.raw("}");
+  Ok(())
 }
 
 fn load_dataset() -> Arc<VectorUsize<DatasetItem>> {

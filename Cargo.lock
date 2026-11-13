@@ -1951,6 +1951,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rimu-json"
+version = "0.1.0"
+dependencies = [
+ "zmij",
+]
+
+[[package]]
 name = "rimu-ws"
 version = "0.52.1"
 dependencies = [
@@ -1991,6 +1998,7 @@ dependencies = [
  "quick-protobuf",
  "quick-xml",
  "rand_core 0.10.1",
+ "rimu-json",
  "rimu-ws",
  "rimu-ws-macros",
  "ring",

@@ -18,8 +18,6 @@ mod from_vars;
 mod hints;
 pub(crate) mod int_conv;
 mod interspace;
-#[cfg(feature = "json-writer")]
-mod json_writer;
 mod lease;
 mod mem;
 mod optimizations;
@@ -50,12 +48,12 @@ pub use error_info::ErrorInfo;
 pub use from_vars::FromVars;
 pub use hints::*;
 pub use interspace::Intersperse;
-#[cfg(feature = "json-writer")]
-pub use json_writer::JsonWriter;
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
+#[cfg(feature = "json-writer")]
+pub use rimu_json::JsonWriter;
 pub use sensitive_bytes::SensitiveBytes;
 pub use shared_bytes::SharedBytes;
 pub use simd_slice::{simd_bytes, simd_bytes_mut};
