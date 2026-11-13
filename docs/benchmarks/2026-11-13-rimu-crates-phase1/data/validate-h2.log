@@ -1,0 +1,227 @@
+=== Validating: rimu-ws ===
+[info] Subscribed tests: echo-ws echo-ws-pipeline echo-ws-limited baseline-h2 static-h2 baseline-h3 static-h3 baseline-h2c json-h2c
+[build] Building Docker image...
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 687B done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/debian:bookworm-slim
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/rust:1.95-bookworm
+#3 DONE 0.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.1s
+
+#5 [stage-1 1/2] FROM docker.io/library/debian:bookworm-slim
+#5 CACHED
+
+#6 [build  1/11] FROM docker.io/library/rust:1.95-bookworm@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1
+#6 CACHED
+
+#7 [internal] load build context
+#7 transferring context: 6.66MB 0.1s done
+#7 DONE 0.2s
+
+#8 [build  2/11] RUN rustup default nightly-2026-10-12
+#8 0.357 info: syncing channel updates for nightly-2026-10-12-x86_64-unknown-linux-gnu
+#8 0.597 info: latest update on 2026-10-12 for version 1.101.0-nightly (080cc2714 2026-10-11)
+#8 0.597 info: downloading 3 components
+#8 8.951 
+#8 8.951 info: default toolchain set to nightly-2026-10-12-x86_64-unknown-linux-gnu
+#8 8.964   nightly-2026-10-12-x86_64-unknown-linux-gnu installed - rustc 1.101.0-nightly (080cc2714 2026-10-11)
+#8 8.964 
+#8 DONE 10.8s
+
+#9 [build  3/11] WORKDIR /app
+#9 DONE 0.2s
+
+#10 [build  4/11] COPY rimu-ws ./rimu-ws
+#10 DONE 0.4s
+
+#11 [build  5/11] COPY rimu-json ./rimu-json
+#11 DONE 0.2s
+
+#12 [build  6/11] COPY rimu-gzip ./rimu-gzip
+#12 DONE 0.2s
+
+#13 [build  7/11] COPY rimu-http1 ./rimu-http1
+#13 DONE 0.2s
+
+#14 [build  8/11] COPY Cargo.toml Cargo.lock ./
+#14 DONE 0.2s
+
+#15 [build  9/11] RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src/ target/release/httparena-rimu-ws* target/release/deps/httparena_rimu_ws*
+#15 0.335     Updating crates.io index
+#15 0.612  Downloading crates ...
+#15 0.679   Downloaded foldhash v0.2.0
+#15 0.685   Downloaded cfg-if v1.0.5
+#15 0.694   Downloaded bitflags v2.13.2
+#15 0.703   Downloaded untrusted v0.9.0
+#15 0.706   Downloaded find-msvc-tools v0.1.15
+#15 0.710   Downloaded itoa v1.0.18
+#15 0.712   Downloaded shlex v2.0.1
+#15 0.714   Downloaded simdutf8 v0.1.5
+#15 0.718   Downloaded zmij v1.0.23
+#15 0.720   Downloaded cc v1.11.0
+#15 0.726   Downloaded quote v1.0.47
+#15 0.731   Downloaded httparse v1.10.1
+#15 0.735   Downloaded unicode-ident v1.0.27
+#15 0.739   Downloaded proc-macro2 v1.0.107
+#15 0.743   Downloaded serde_core v1.0.229
+#15 0.747   Downloaded serde_derive v1.0.229
+#15 0.752   Downloaded socket2 v0.6.5
+#15 0.754   Downloaded getrandom v0.2.17
+#15 0.759   Downloaded memchr v2.8.3
+#15 0.768   Downloaded serde v1.0.229
+#15 0.773   Downloaded io-uring v0.7.15
+#15 0.779   Downloaded hashbrown v0.17.1
+#15 0.787   Downloaded serde_json v1.0.154
+#15 0.799   Downloaded zlib-rs v0.6.8
+#15 0.807   Downloaded syn v3.0.9
+#15 0.823   Downloaded libc v0.2.191
+#15 0.899   Downloaded ring v0.17.14
+#15 1.005    Compiling proc-macro2 v1.0.107
+#15 1.005    Compiling unicode-ident v1.0.27
+#15 1.006    Compiling libc v0.2.191
+#15 1.006    Compiling quote v1.0.47
+#15 1.006    Compiling serde_core v1.0.229
+#15 1.006    Compiling shlex v2.0.1
+#15 1.007    Compiling find-msvc-tools v0.1.15
+#15 1.010    Compiling zmij v1.0.23
+#15 1.014    Compiling cfg-if v1.0.5
+#15 1.018    Compiling serde v1.0.229
+#15 1.024    Compiling io-uring v0.7.15
+#15 1.024    Compiling serde_json v1.0.154
+#15 1.024    Compiling httparse v1.10.1
+#15 1.024    Compiling bitflags v2.13.2
+#15 1.026    Compiling untrusted v0.9.0
+#15 1.027    Compiling itoa v1.0.18
+#15 1.031    Compiling memchr v2.8.3
+#15 1.031    Compiling foldhash v0.2.0
+#15 1.035    Compiling simdutf8 v0.1.5
+#15 1.151    Compiling cc v1.11.0
+#15 1.484    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
+#15 1.883    Compiling syn v3.0.9
+#15 2.278    Compiling getrandom v0.2.17
+#15 2.279    Compiling socket2 v0.6.5
+#15 2.387    Compiling ring v0.17.14
+#15 3.569    Compiling hashbrown v0.17.1
+#15 5.131    Compiling serde_derive v1.0.229
+#15 5.131    Compiling rimu-ws-macros v0.12.1 (/app/rimu-ws/wtx-macros)
+#15 10.56    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
+#15 31.33    Compiling httparena-rimu-ws v0.1.0 (/app)
+#15 33.52 warning: unused dependency `rimu-ws`
+#15 33.52  --> Cargo.toml:8:1
+#15 33.52   |
+#15 33.52 8 | rimu-ws = { default-features = false, features = ["crypto-ring", "http2-server-framework", "http3-server-framework", "io-uring", "json-writer", "macros", "optimizations-std", "serde", "serde_json", "web-socket-server-framework"], path = "rimu-ws/wtx" }
+#15 33.52   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#15 33.52   |
+#15 33.52   = note: `cargo::unused_dependencies` is set to `warn` by default
+#15 33.52 help: consider removing the dependency on `rimu-ws`
+#15 33.52 warning: `httparena-rimu-ws` (manifest) generated 1 warning
+#15 33.52     Finished `release` profile [optimized] target(s) in 33.23s
+#15 DONE 33.9s
+
+#16 [build 10/11] COPY src ./src
+#16 DONE 0.2s
+
+#17 [build 11/11] RUN RUSTFLAGS="-C target-cpu=native" cargo build --release
+#17 0.388    Compiling proc-macro2 v1.0.107
+#17 0.388    Compiling unicode-ident v1.0.27
+#17 0.388    Compiling quote v1.0.47
+#17 0.388    Compiling libc v0.2.191
+#17 0.388    Compiling serde_core v1.0.229
+#17 0.388    Compiling shlex v2.0.1
+#17 0.388    Compiling find-msvc-tools v0.1.15
+#17 0.388    Compiling zmij v1.0.23
+#17 0.390    Compiling cfg-if v1.0.5
+#17 0.393    Compiling httparse v1.10.1
+#17 0.396    Compiling io-uring v0.7.15
+#17 0.396    Compiling serde_json v1.0.154
+#17 0.397    Compiling serde v1.0.229
+#17 0.398    Compiling bitflags v2.13.2
+#17 0.398    Compiling untrusted v0.9.0
+#17 0.402    Compiling itoa v1.0.18
+#17 0.402    Compiling foldhash v0.2.0
+#17 0.402    Compiling memchr v2.8.3
+#17 0.402    Compiling simdutf8 v0.1.5
+#17 0.542    Compiling cc v1.11.0
+#17 0.874    Compiling rimu-json v0.1.0 (/app/rimu-json/rimu-json)
+#17 1.213    Compiling syn v3.0.9
+#17 1.756    Compiling getrandom v0.2.17
+#17 1.756    Compiling socket2 v0.6.5
+#17 1.863    Compiling ring v0.17.14
+#17 2.950    Compiling hashbrown v0.17.1
+#17 4.322    Compiling serde_derive v1.0.229
+#17 4.322    Compiling rimu-ws-macros v0.12.1 (/app/rimu-ws/wtx-macros)
+#17 9.701    Compiling rimu-ws v0.52.1 (/app/rimu-ws/wtx)
+#17 30.14    Compiling httparena-rimu-ws v0.1.0 (/app)
+#17 47.71     Finished `release` profile [optimized] target(s) in 47.38s
+#17 DONE 48.0s
+
+#18 [stage-1 2/2] COPY --from=build /app/target/release/httparena-rimu-ws /server
+#18 DONE 0.1s
+
+#19 exporting to image
+#19 exporting layers 0.1s done
+#19 writing image sha256:0e654d369884367eb9d424ee078c30a559b8092ac5cf7961e9c2f83c96b9c4e3 done
+#19 naming to docker.io/library/httparena-rimu-ws done
+#19 DONE 0.1s
+b0d8f92c0ea85af6697bc04fd44f1a7f5f1bb147d72275dac7439164b28b25a0
+[wait] Waiting for server...
+[ready] Server is up
+  PASS [baseline-h2 serves the mounted certificate]
+  PASS [baseline-h2 negotiates TLS 1.3] (cipher TLS_AES_128_GCM_SHA256)
+  PASS [baseline-h2 uses a TLS 1.3 AEAD cipher] (TLS_AES_128_GCM_SHA256)
+  PASS [baseline-h2 ALPN] (h2)
+  PASS [baseline-h2 TLS quality] (refuses every obsolete protocol and weak cipher probed)
+  NOTE [baseline-h2 TLS quality]: this openssl cannot offer ssl3, so those were not probed
+[test] baseline-h2 endpoint
+[wait] Waiting for HTTPS port...
+  PASS [HTTP/2 protocol negotiation] (HTTP/2)
+  PASS [GET /baseline2?a=13&b=42 over HTTP/2]
+  PASS [GET /baseline2?a=405&b=217 over HTTP/2 (random)]
+  PASS [GET /baseline2 Content-Type] (Content-Type: text/plain)
+[test] baseline-h2c endpoint
+  PASS [HTTP/2 cleartext (prior-knowledge)] (HTTP/2)
+  PASS [GET /baseline2?a=13&b=42 over h2c]
+  PASS [GET /baseline2?a=985&b=552 over h2c (random)]
+  PASS [GET /baseline2 Content-Type (h2c)] (Content-Type: text/plain)
+[test] json-h2c endpoint
+  PASS [/json HTTP/2 cleartext] (HTTP/2)
+  PASS [GET /json Content-Type (h2c)] (Content-Type: application/json)
+  PASS [GET /json/{count}?m=X over h2c] (4 counts × multipliers, full item schema + totals)
+  PASS [static-h2 serves the mounted certificate]
+  PASS [static-h2 negotiates TLS 1.3] (cipher TLS_AES_128_GCM_SHA256)
+  PASS [static-h2 uses a TLS 1.3 AEAD cipher] (TLS_AES_128_GCM_SHA256)
+  PASS [static-h2 ALPN] (h2)
+[test] static-h2 endpoint
+[wait] Waiting for HTTPS port...
+  PASS [GET /static/reset.css Content-Type] (Content-Type: text/css)
+  PASS [GET /static/app.js Content-Type] (Content-Type: text/javascript)
+  PASS [GET /static/manifest.json Content-Type] (Content-Type: application/json)
+  PASS [static-h2 response size] (8192 bytes)
+  PASS [GET /static/nonexistent.txt] (HTTP 404)
+[test] h3 endpoints (QUIC on :8443/udp)
+  SKIP [h3]: no h2load-h3 image — build docker/h2load-h3.Dockerfile to validate HTTP/3
+[test] echo-ws endpoint
+[test] WebSocket echo validation (ws://localhost:8080/ws)
+  PASS [upgrade status 101] (HTTP/1.1 101 Switching Protocols)
+  PASS [Sec-WebSocket-Accept] (correct)
+  PASS [text echo] (echoed 35 chars)
+  PASS [binary echo] (sent 256 bytes, got 256 bytes)
+  PASS [multi-message echo (5 msgs)] (all 5 echoed correctly)
+  PASS [reject non-upgrade GET /ws] (HTTP 400)
+[test] post-validation health check
+  PASS [server alive after tests]
+
+=== WS Results: 7 passed, 0 failed ===
+[info] TLS verdict: pass, opt-in tls_check: none
+
+=== Results: 32 passed, 0 failed, 1 skipped ===
+httparena-validate-rimu-ws
