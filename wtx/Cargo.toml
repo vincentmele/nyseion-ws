@@ -31,6 +31,7 @@ rimu-ws-macros = { default-features = false, optional = true, path = "../wtx-mac
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
+rimu-gzip = { default-features = false, optional = true, path = "../../rimu-gzip/rimu-gzip" }
 rimu-json = { default-features = false, optional = true, path = "../../rimu-json/rimu-json" }
 
 # Rust Crypto and its extravagant set of associated dependencies
@@ -146,8 +147,8 @@ http-session = ["http-cookie-secure", "secret", "serde_json"]
 httparse = ["dep:httparse"]
 io-uring = ["dep:io-uring", "libc", "socket2", "std"]
 json-writer = ["dep:rimu-json"]
-# A one-shot gzip encoder for small bodies (CRC32 from zlib-rs).
-gzip-encoder = ["zlib-rs"]
+# A one-shot gzip encoder for small bodies (rimu-gzip).
+gzip-encoder = ["dep:rimu-gzip"]
 libc = ["dep:libc"]
 macros = ["dep:rimu-ws-macros"]
 memchr = ["dep:memchr"]
@@ -196,7 +197,6 @@ _fuzz = ["web-socket"]
 _fuzz-conn = ["_fuzz", "_h3-loopback-client", "quic"]
 # Test-only, not a public API: the HTTP/3 client of `http3::loopback_client`, for the in-process
 # tests of binaries (wtx-internal enables it through its dev-dependencies only)
-_fuzz-gzip = ["gzip-encoder"]
 _h3-loopback-client = ["http3", "std"]
 _hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std"] # Does not decide for downstream users
 _integration-tests = ["ccadb", "serde_json?/raw_value"]

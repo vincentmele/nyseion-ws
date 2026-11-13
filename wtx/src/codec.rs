@@ -19,8 +19,6 @@ mod encode;
 pub mod format;
 mod from_radix_10;
 mod generic_codec;
-#[cfg(feature = "gzip-encoder")]
-mod gzip_encoder;
 mod hex;
 mod misc;
 pub mod num_str;
@@ -43,11 +41,10 @@ pub use decompression::{Decompression, DecompressionFlush};
 pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{DecodeWrapper, EncodeWrapper, GenericCodec};
-#[cfg(feature = "_fuzz-gzip")]
-#[doc(hidden)]
-pub use gzip_encoder::check as gzip_check;
 #[cfg(feature = "gzip-encoder")]
-pub use gzip_encoder::{GzipEncoder, GzipParams};
+pub use rimu_gzip::{
+  Encoder as GzipEncoder, Level as GzipLevel, Params as GzipParams, Strategy as GzipStrategy,
+};
 pub use hex::*;
 pub use misc::{
   decode_base64_into_buffer, decode_hex_into_buffer, encode_base64_into_buffer,

@@ -14,7 +14,7 @@
 
 use crate::{DatasetItem, GZIP_WINDOW_BITS, write_json};
 use rimu_ws::{
-  codec::{GzipEncoder, GzipParams},
+  codec::{GzipEncoder, GzipParams, GzipStrategy},
   collections::VectorUsize,
 };
 use std::time::Instant;
@@ -113,7 +113,7 @@ fn sweep() {
         for good_match in if lazy { &[4, 8, 16, 32][..] } else { &[8][..] } {
           for max_insert in [1, 2, 4, 8, 16, 258] {
             let good_match = *good_match;
-            let params = GzipParams { search_depth, nice_match, good_match, max_insert, lazy };
+            let params = old_params(search_depth, nice_match, good_match, max_insert, lazy);
             let mut encoder = GzipEncoder::with_params(params);
             rows.push(measure(
               format!(
@@ -121,7 +121,7 @@ fn sweep() {
                 if lazy { "lazy  " } else { "greedy" }
               ),
               &bodies,
-              |body, out| encoder.encode(body, out).unwrap(),
+              |body, out| encoder.gzip(body, out),
             ));
           }
         }
@@ -174,13 +174,7 @@ fn profile_loop() {
     .split(',')
     .map(|el| el.parse().unwrap())
     .collect();
-  let params = GzipParams {
-    search_depth: p[0],
-    nice_match: p[1],
-    good_match: p[2],
-    max_insert: p[3],
-    lazy: p.get(4).is_none_or(|&el| el != 0),
-  };
+  let params = old_params(p[0], p[1], p[2], p[3], p.get(4).is_none_or(|&el| el != 0));
   let seconds: u64 = std::env::var("SECONDS").ok().and_then(|el| el.parse().ok()).unwrap_or(10);
   let mut encoder = GzipEncoder::with_params(params);
   let mut out = Vec::new();
@@ -189,9 +183,16 @@ fn profile_loop() {
   while begin.elapsed().as_secs() < seconds {
     for body in &bodies {
       out.clear();
-      encoder.encode(body, &mut out).unwrap();
+      encoder.gzip(body, &mut out);
       n += 1;
     }
   }
   println!("{n} encodes, {:.2} us each", begin.elapsed().as_secs_f64() * 1e6 / n as f64);
+}
+
+/// The parameters of the in-tree encoder this sweep was written for, in rimu-gzip's terms: one
+/// step of lazy evaluation or greedy parsing, and no block splitting.
+fn old_params(search_depth: u16, nice_match: u16, good_match: u16, max_insert: u16, lazy: bool) -> GzipParams {
+  let strategy = if lazy { GzipStrategy::LazyOnce } else { GzipStrategy::Greedy };
+  GzipParams { strategy, search_depth, nice_match, good_match, max_insert, split_blocks: false }
 }
