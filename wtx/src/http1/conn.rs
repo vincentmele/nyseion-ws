@@ -13,6 +13,10 @@ use core::mem;
 
 /// Maximum number of bytes buffered between two `poll_event` calls.
 const BUF_CAP: usize = 256 * 1024;
+/// rimu-http1's limits as rimu-ws has always had them: a 16 KiB head with no shorter limit per line
+/// (rimu-http1's default caps a line at 8 KiB), so large cookies and tokens keep working.
+const PARSER_CONFIG: rimu_http1::Config =
+  rimu_http1::Config { max_line_len: 16 * 1024, ..rimu_http1::Config::DEFAULT };
 /// Chunk framing, extensions and trailers a body may carry in addition to a quarter of its
 /// payload.
 const FRAMING_BUDGET: usize = 16 * 1024;
@@ -397,7 +401,7 @@ impl Http1Conn {
   /// as a push would move the parser the view points to.
   fn parser(parser: &mut Vec<RequestParser<MAX_HEADERS>>) -> Option<&mut RequestParser<MAX_HEADERS>> {
     if parser.is_empty() {
-      parser.push(RequestParser::default());
+      parser.push(RequestParser::new(PARSER_CONFIG));
     }
     parser.first_mut()
   }
@@ -1135,5 +1139,21 @@ mod tests {
     assert_eq!(req.headers.find("x-a"), Some("1"));
     assert_eq!(req.headers.len(), 2);
     assert_eq!(req.path, "/x");
+  }
+
+  #[test]
+  fn header_lines_up_to_the_head_limit_are_accepted() {
+    // A 12 KiB cookie: over rimu-http1's default 8 KiB line limit, within the 16 KiB head limit
+    // rimu-ws has always had.
+    let cookie = "c".repeat(12 * 1024);
+    let req = alloc::format!("GET / HTTP/1.1\r\nHost: a\r\nCookie: {cookie}\r\n\r\n");
+    let mut c = conn();
+    c.feed(req.as_bytes()).unwrap();
+    assert_eq!(c.poll_event(), Http1Event::RequestReady);
+    assert_eq!(c.request().unwrap().headers.find("cookie").map(str::len), Some(12 * 1024));
+    let target = alloc::format!("GET /{} HTTP/1.1\r\nHost: a\r\n\r\n", "p".repeat(12 * 1024));
+    let mut c = conn();
+    c.feed(target.as_bytes()).unwrap();
+    assert_eq!(c.poll_event(), Http1Event::RequestReady);
   }
 }
