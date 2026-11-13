@@ -32,6 +32,7 @@ zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
 rimu-gzip = { default-features = false, optional = true, path = "../../rimu-gzip/rimu-gzip" }
+rimu-http1 = { default-features = false, optional = true, path = "../../rimu-http1" }
 rimu-json = { default-features = false, optional = true, path = "../../rimu-json/rimu-json" }
 
 # Rust Crypto and its extravagant set of associated dependencies
@@ -135,7 +136,7 @@ grpc-client = ["grpc", "http2-client-pool"]
 grpc-server = ["grpc", "http2-server-framework"]
 hashbrown = ["dep:hashbrown", "hashbrown?/default-hasher", "hashbrown?/inline-more"]
 http = []
-http1-server-framework = ["http", "io-uring", "tls"]
+http1-server-framework = ["dep:rimu-http1", "http", "io-uring", "tls"]
 http2 = ["foldhash", "hashbrown", "http", "tls"]
 http2-client-pool = ["http2", "std"]
 http2-server-framework = ["http2"]

@@ -55,12 +55,12 @@ impl<'a> Http1Req<'a> {
   /// First header called `name`, ignoring case.
   #[inline]
   pub fn header(&self, name: &str) -> Option<&'a str> {
-    self.head.headers.iter().find(|el| el.0.eq_ignore_ascii_case(name)).map(|el| el.1)
+    self.head.headers.find(name)
   }
 
   /// All headers, in the order they were received.
   #[inline]
-  pub const fn headers(&self) -> &'a [(&'a str, &'a str)] {
+  pub const fn headers(&self) -> crate::http1::Headers<'a> {
     self.head.headers
   }
 

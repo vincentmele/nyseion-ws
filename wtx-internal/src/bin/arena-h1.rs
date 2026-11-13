@@ -218,10 +218,10 @@ fn endpoint_json(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws:
   let count: usize = req.param("count").unwrap_or("0").parse()?;
   let m = query_m(req.query())?;
   let dataset = DATASET.get().map_or(&[][..], |el| el.as_slice());
-  let accepts = req.headers().iter().filter(|el| el.0.eq_ignore_ascii_case("accept-encoding"));
+  let accepts = req.headers().iter().filter(|el| el.name.eq_ignore_ascii_case("accept-encoding"));
   // The response depends on `Accept-Encoding`, so every one says so (RFC 9110 §12.5.5)
   res.push_header("vary", "Accept-Encoding")?;
-  let Some(encoding) = choose_encoding(accepts.map(|el| el.1)) else {
+  let Some(encoding) = choose_encoding(accepts.map(|el| el.value)) else {
     res.body_mut().extend_from_slice(b"no acceptable content coding");
     res.set_content_type("text/plain");
     res.set_status(StatusCode::NotAcceptable);

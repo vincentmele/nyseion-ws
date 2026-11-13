@@ -1958,6 +1958,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rimu-http1"
+version = "0.1.0"
+
+[[package]]
 name = "rimu-json"
 version = "0.1.0"
 dependencies = [
@@ -2006,6 +2010,7 @@ dependencies = [
  "quick-xml",
  "rand_core 0.10.1",
  "rimu-gzip",
+ "rimu-http1",
  "rimu-json",
  "rimu-ws",
  "rimu-ws-macros",

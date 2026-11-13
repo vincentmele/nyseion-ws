@@ -3,10 +3,11 @@
 use crate::{
   http::{HttpRecvParams, Method, StatusCode, Version},
   http1::{
-    BodyDecoder, BodyKind, BodyStatus, Http1Request, ParseOutcome, ParseScratch, error_status,
-    parse_request, write_response,
+    BodyKind, Http1Request, MAX_HEADERS, body_kind_of, method_of, status_of, version_of,
+    write_response,
   },
 };
+use rimu_http1::{BodyDecoder, BodyStatus, RequestParser, Status};
 use alloc::vec::Vec;
 use core::mem;
 
@@ -51,11 +52,13 @@ pub struct Http1Conn {
   inflight: usize,
   max_body_len: usize,
   phase: Phase,
-  /// One element once a head was parsed, none before (see [`Self::scratch`]). A `Vec` and not a
-  /// `Box`: moving a `Box` retags its pointee as unique, which invalidates the header slice
-  /// `view` points to; moving a `Vec` does not.
-  scratch: Vec<ParseScratch>,
-  /// Points into `buf` and `scratch`; `Some` only while neither changed since it was set.
+  /// The request parser, one element once a head was looked at, none before (see
+  /// [`Self::parser`]). It resumes where the previous `poll_event` stopped: the head at
+  /// `buf[start..]` is scanned once however it is split across reads. A `Vec` and not a `Box`:
+  /// moving a `Box` retags its pointee as unique, which invalidates the header slots `view`
+  /// points to; moving a `Vec` does not.
+  parser: Vec<RequestParser<MAX_HEADERS>>,
+  /// Points into `buf` and `parser`; `Some` only while neither changed since it was set.
   view: Option<Http1Request<'static>>,
   closing: bool,
 }
@@ -78,8 +81,9 @@ enum Head {
   Bad(StatusCode),
   Partial,
   Bodyless(Http1Request<'static>, usize),
-  /// The framing, the length of the head, and if the client waits for a 100 (Continue) first.
-  WithBody(BodyKind, usize, bool),
+  /// The framing (as rimu-ws and as rimu-http1 see it), the length of the head, and if the client
+  /// waits for a 100 (Continue) first.
+  WithBody(BodyKind, rimu_http1::BodyKind, usize, bool),
 }
 
 /// The buffers of an [`Http1Conn`], to serve another connection with: what
@@ -94,20 +98,20 @@ pub struct Http1ConnParts {
   buf: Vec<u8>,
   body: Vec<u8>,
   out: Vec<u8>,
-  scratch: Vec<ParseScratch>,
+  parser: Vec<RequestParser<MAX_HEADERS>>,
 }
 
 impl Http1ConnParts {
   /// Bytes the buffers hold room for.
   #[inline]
   pub fn capacity(&self) -> usize {
-    let scratch = self.scratch.capacity().saturating_mul(size_of::<ParseScratch>());
+    let parser = self.parser.capacity().saturating_mul(size_of::<RequestParser<MAX_HEADERS>>());
     self
       .buf
       .capacity()
       .saturating_add(self.body.capacity())
       .saturating_add(self.out.capacity())
-      .saturating_add(scratch)
+      .saturating_add(parser)
   }
 
   /// Empties the buffers, keeping their capacity.
@@ -119,7 +123,7 @@ impl Http1ConnParts {
   }
 
   /// Frees every byte buffer whose capacity is above `max`, so that a pool keeps none that a
-  /// large request or response grew. The parse scratch, of a fixed size, is kept.
+  /// large request or response grew. The parser, of a fixed size, is kept.
   #[inline]
   pub fn free_larger_than(&mut self, max: usize) {
     for buffer in [&mut self.buf, &mut self.body, &mut self.out] {
@@ -135,11 +139,14 @@ impl Http1Conn {
   /// nothing until a request or a response needs more room than they have.
   #[inline]
   pub fn from_parts(params: &HttpRecvParams, parts: Http1ConnParts) -> Self {
-    let Http1ConnParts { mut buf, mut body, mut out, mut scratch } = parts;
+    let Http1ConnParts { mut buf, mut body, mut out, mut parser } = parts;
     buf.clear();
     body.clear();
     out.clear();
-    scratch.truncate(1);
+    parser.truncate(1);
+    if let Some(parser) = parser.first_mut() {
+      parser.reset();
+    }
     Self {
       buf,
       start: 0,
@@ -148,7 +155,7 @@ impl Http1Conn {
       inflight: 0,
       max_body_len: usize::try_from(params.max_body_len()).unwrap_or(usize::MAX),
       phase: Phase::Head,
-      scratch,
+      parser,
       view: None,
       closing: false,
     }
@@ -163,11 +170,11 @@ impl Http1Conn {
   /// while it is protected (Stacked Borrows).
   #[inline]
   pub fn into_parts(self) -> Http1ConnParts {
-    let Self { buf, body, out, scratch, .. } = self;
-    Http1ConnParts { buf, body, out, scratch }
+    let Self { buf, body, out, parser, .. } = self;
+    Http1ConnParts { buf, body, out, parser }
   }
 
-  /// New connection. Its buffers, the parse scratch included, are allocated as it needs them.
+  /// New connection. Its buffers, the parser included, are allocated as it needs them.
   #[inline]
   pub fn new(params: &HttpRecvParams) -> Self {
     Self::from_parts(params, Http1ConnParts::default())
@@ -213,7 +220,7 @@ impl Http1Conn {
       return Http1Event::RequestReady;
     }
     if let Phase::Head = self.phase {
-      let (kind, head_len, expect) = match self.parse_head() {
+      let (kind, wire, head_len, expect) = match self.parse_head() {
         Head::Bad(status) => return self.fail(status),
         Head::Partial => return Http1Event::NeedMore,
         Head::Bodyless(request, head_len) => {
@@ -227,7 +234,7 @@ impl Http1Conn {
           };
           return Http1Event::RequestReady;
         }
-        Head::WithBody(kind, head_len, expect) => (kind, head_len, expect),
+        Head::WithBody(kind, wire, head_len, expect) => (kind, wire, head_len, expect),
       };
       if let BodyKind::ContentLength(len) = kind
         && len > self.max_body_len
@@ -235,7 +242,7 @@ impl Http1Conn {
         return self.fail(StatusCode::PayloadTooLarge);
       }
       self.body.clear();
-      self.phase = Phase::Body { decoder: BodyDecoder::new(kind), head_len, raw: 0, expect };
+      self.phase = Phase::Body { decoder: BodyDecoder::new(wire), head_len, raw: 0, expect };
     }
     let Phase::Body { decoder, head_len, raw, expect } = &mut self.phase else {
       return Http1Event::NeedMore;
@@ -245,10 +252,11 @@ impl Http1Conn {
     let head_end = self.start.wrapping_add(head_len);
     let input = self.buf.get(head_end..).unwrap_or_default();
     let input_len = input.len();
-    let status = match decoder.feed(input, &mut self.body) {
+    let body = &mut self.body;
+    let status = match decoder.feed(input, |chunk| body.extend_from_slice(chunk)) {
       Ok(status) => status,
       // 400, or 431 for too many trailer fields
-      Err(err) => return self.fail(error_status(&err)),
+      Err(err) => return self.fail(status_of(err)),
     };
     // Only what belongs to this body counts, not the pipelined requests after it.
     let taken = match status {
@@ -385,58 +393,56 @@ impl Http1Conn {
     self.closing
   }
 
-  /// The parse scratch, made by the first head of a connection that has none. Called with no
-  /// view set, as a push would move the scratch the view points to.
-  fn scratch(scratch: &mut Vec<ParseScratch>) -> Option<&mut ParseScratch> {
-    if scratch.is_empty() {
-      scratch.push(ParseScratch::new());
+  /// The parser, made by the first head of a connection that has none. Called with no view set,
+  /// as a push would move the parser the view points to.
+  fn parser(parser: &mut Vec<RequestParser<MAX_HEADERS>>) -> Option<&mut RequestParser<MAX_HEADERS>> {
+    if parser.is_empty() {
+      parser.push(RequestParser::default());
     }
-    scratch.first_mut()
+    parser.first_mut()
   }
 
-  /// Parses the head at the front of the live input.
+  /// Parses the head at the front of the live input, resuming where the previous call stopped.
   fn parse_head(&mut self) -> Head {
     let input = self.buf.get(self.start..).unwrap_or_default();
-    let Some(scratch) = Self::scratch(&mut self.scratch) else {
+    let Some(parser) = Self::parser(&mut self.parser) else {
       return Head::Bad(StatusCode::InternalServerError);
     };
-    match parse_request(input, scratch) {
-      Err(err) => Head::Bad(error_status(&err)),
-      Ok(ParseOutcome::Partial) => Head::Partial,
-      Ok(ParseOutcome::Complete { request, head_len }) => match request.body_kind {
-        BodyKind::None | BodyKind::ContentLength(0) => {
-          // SAFETY: `request` points into `self.buf` and `self.scratch`, heap data that does not
-          // move, and is not retagged, when `self` moves (both are `Vec`s). `self.view` is
-          // cleared before either changes.
-          let request =
-            unsafe { core::mem::transmute::<Http1Request<'_>, Http1Request<'static>>(request) };
-          Head::Bodyless(request, head_len)
-        }
-        kind => {
-          let expect = request.version == Version::Http1_1
-            && request.headers.iter().any(|(name, value)| {
-              name.eq_ignore_ascii_case("expect") && value.eq_ignore_ascii_case("100-continue")
-            });
-          Head::WithBody(kind, head_len, expect)
-        }
-      },
+    let wire = match parser.parse(input) {
+      Err(err) => return Head::Bad(status_of(err)),
+      Ok(Status::Partial) => return Head::Partial,
+      Ok(Status::Complete(wire)) => wire,
+    };
+    // A length over `usize` is a body over any limit; checked first, as `request_of` needs it.
+    let Some(kind) = body_kind_of(wire.body) else {
+      return Head::Bad(StatusCode::PayloadTooLarge);
+    };
+    let Some(request) = request_of(&wire) else {
+      return Head::Bad(StatusCode::NotImplemented);
+    };
+    match kind {
+      BodyKind::None | BodyKind::ContentLength(0) => {
+        // SAFETY: `request` points into `self.buf` and `self.parser`, heap data that does not
+        // move, and is not retagged, when `self` moves (both are `Vec`s). `self.view` is cleared
+        // before either changes.
+        let request = unsafe { core::mem::transmute::<Http1Request<'_>, Http1Request<'static>>(request) };
+        Head::Bodyless(request, wire.head_len)
+      }
+      kind => Head::WithBody(kind, wire.body, wire.head_len, wire.expect_continue),
     }
   }
 
-  /// Parses the head again to set `view`, returning it.
+  /// Sets `view` to the completed head again (no new parse: rimu-http1 rebuilds the view of the
+  /// head it completed), returning it.
   fn set_view(&mut self) -> crate::Result<Http1Request<'static>> {
     let input = self.buf.get(self.start..).unwrap_or_default();
-    let scratch = Self::scratch(&mut self.scratch).ok_or(crate::http::HttpError::BadRequest)?;
-    match parse_request(input, scratch)? {
-      ParseOutcome::Complete { request, .. } => {
-        // SAFETY: same as in `parse_head`.
-        let request =
-          unsafe { core::mem::transmute::<Http1Request<'_>, Http1Request<'static>>(request) };
-        self.view = Some(request);
-        Ok(request)
-      }
-      ParseOutcome::Partial => Err(crate::http::HttpError::BadRequest.into()),
-    }
+    let parser = Self::parser(&mut self.parser).ok_or(crate::http::HttpError::BadRequest)?;
+    let wire = parser.view(input).map_err(|_| crate::http::HttpError::BadRequest)?;
+    let request = request_of(&wire).ok_or(crate::http::HttpError::BadRequest)?;
+    // SAFETY: same as in `parse_head`.
+    let request = unsafe { core::mem::transmute::<Http1Request<'_>, Http1Request<'static>>(request) };
+    self.view = Some(request);
+    Ok(request)
   }
 
   /// Answers with an error, stops reading and starts closing.
@@ -446,10 +452,27 @@ impl Http1Conn {
     self.body.clear();
     self.buf.clear();
     self.start = 0;
+    if let Some(parser) = self.parser.first_mut() {
+      parser.reset();
+    }
     self.phase = Phase::Head;
     self.closing = true;
     Http1Event::NeedMore
   }
+}
+
+/// rimu-ws's view of a request rimu-http1 parsed; `None` for an extension method or a length that
+/// does not fit in `usize`.
+fn request_of<'b>(wire: &rimu_http1::Request<'b>) -> Option<Http1Request<'b>> {
+  Some(Http1Request {
+    method: method_of(wire.method)?,
+    version: version_of(wire.version),
+    path: wire.path,
+    query: wire.query,
+    headers: wire.headers,
+    body_kind: body_kind_of(wire.body)?,
+    keep_alive: wire.keep_alive,
+  })
 }
 
 #[cfg(test)]
@@ -816,9 +839,9 @@ mod tests {
       let c = pass(c);
       let mut c = *alloc::boxed::Box::new(c);
       let request = c.request().unwrap();
-      assert_eq!(request.headers[0], ("Host", "a"));
+      assert_eq!(request.headers.get(0).map(|el| (el.name, el.value)), Some(("Host", "a")));
       assert_eq!(c.poll_event(), Http1Event::RequestReady);
-      assert_eq!(c.request().unwrap().headers[0], ("Host", "a"));
+      assert_eq!(c.request().unwrap().headers.get(0).map(|el| (el.name, el.value)), Some(("Host", "a")));
       answer(&mut c);
     }
   }
@@ -954,7 +977,7 @@ mod tests {
       assert_eq!(c.poll_event(), Http1Event::RequestReady);
       let request = c.request().unwrap();
       assert_eq!((request.path, request.query), ("/second", "y=2"));
-      assert_eq!(request.headers[1], ("X", "z"));
+      assert_eq!(request.headers.get(1).map(|el| (el.name, el.value)), Some(("X", "z")));
       if round == 1 {
         // In the middle of a body instead, the view cleared by the feed
         answer(&mut c);
@@ -972,7 +995,7 @@ mod tests {
     c.feed(GET).unwrap();
     assert_eq!(c.poll_event(), Http1Event::RequestReady);
     let c = Box::new(c);
-    assert_eq!(c.request().unwrap().headers[0], ("Host", "a"));
+    assert_eq!(c.request().unwrap().headers.get(0).map(|el| (el.name, el.value)), Some(("Host", "a")));
   }
 
   // A buffer above the cap is freed, the others keep their capacity.
@@ -995,7 +1018,7 @@ mod tests {
     assert!(out > 0 && out < 1024, "{out}");
     parts.free_larger_than(1024);
     assert_eq!((parts.buf.capacity(), parts.body.capacity(), parts.out.capacity()), (0, 0, out));
-    assert_eq!(parts.scratch.len(), 1);
+    assert_eq!(parts.parser.len(), 1);
   }
 
   // Envoy's pipelined-error tests: the first request of a pipeline is answered before the
@@ -1028,5 +1051,89 @@ mod tests {
     assert!(c.wants_close(), "the connection lived on after 150 trailer fields");
     assert!(output(&mut c).starts_with(b"HTTP/1.1 431 "));
     assert_eq!(c.poll_event(), Http1Event::Closed);
+  }
+
+  /// A request as the application saw it.
+  type Seen = (Method, alloc::string::String, alloc::string::String, Vec<u8>);
+
+  /// Feeds `pieces` one after the other, answering every ready request; returns the requests seen
+  /// and the output, without interim 100 (Continue) responses (they depend on how input is split).
+  fn drive(pieces: &[&[u8]]) -> (Vec<Seen>, Vec<u8>) {
+    let mut c = conn();
+    let mut seen = Vec::new();
+    let mut out = Vec::new();
+    for piece in pieces {
+      let mut rest = *piece;
+      loop {
+        let taken = c.feed(rest).unwrap();
+        rest = rest.get(taken..).unwrap_or_default();
+        while c.poll_event() == Http1Event::RequestReady {
+          let req = c.request().unwrap();
+          seen.push((req.method, req.path.into(), req.query.into(), c.body().to_vec()));
+          answer(&mut c);
+        }
+        out.extend_from_slice(&output(&mut c));
+        if rest.is_empty() {
+          break;
+        }
+      }
+    }
+    let interim: &[u8] = b"HTTP/1.1 100 Continue\r\n\r\n";
+    while let Some(at) = out.windows(interim.len()).position(|el| el == interim) {
+      let _ = out.drain(at..at + interim.len());
+    }
+    (seen, out)
+  }
+
+  #[test]
+  fn split_at_every_offset_matches_whole() {
+    let pipelined = [GET, GET].concat();
+    let inputs: [&[u8]; 6] = [
+      GET,
+      POST_CL,
+      POST_CHUNKED,
+      &pipelined,
+      b"GET /old HTTP/1.0\r\nConnection: keep-alive\r\n\r\n",
+      b"POST /e HTTP/1.1\r\nHost: a\r\nExpect: 100-continue\r\nContent-Length: 3\r\n\r\nabc",
+    ];
+    for input in inputs {
+      let whole = drive(&[input]);
+      assert!(!whole.0.is_empty(), "{:?}", alloc::string::String::from_utf8_lossy(input));
+      for cut in 1..input.len() {
+        let (a, b) = input.split_at(cut);
+        assert_eq!(drive(&[a, b]), whole, "cut {cut} of {:?}", alloc::string::String::from_utf8_lossy(input));
+      }
+    }
+  }
+
+  #[test]
+  fn head_split_across_a_compaction() {
+    let (first, second) = POST_CL.split_at(20);
+    let (seen, _) = drive(&[&[GET, first].concat(), second]);
+    let (alone, _) = drive(&[POST_CL]);
+    assert_eq!(seen.len(), 2);
+    assert_eq!(seen.get(1), alone.first());
+    assert_eq!(seen.get(1).map(|el| el.3.as_slice()), Some(&b"20"[..]));
+  }
+
+  #[test]
+  fn content_length_over_usize_is_rejected() {
+    let mut c = conn();
+    c.feed(b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 18446744073709551615\r\n\r\n").unwrap();
+    assert_eq!(c.poll_event(), Http1Event::NeedMore);
+    assert!(output(&mut c).starts_with(b"HTTP/1.1 413 "));
+  }
+
+  #[test]
+  fn headers_are_a_zero_copy_view() {
+    let mut c = conn();
+    c.feed(b"GET http://example.com/x HTTP/1.1\r\nHost: other\r\nX-A: 1\r\n\r\n").unwrap();
+    assert_eq!(c.poll_event(), Http1Event::RequestReady);
+    let req = c.request().unwrap();
+    // Absolute-form: `Host` is the target's authority (RFC 9112 §3.2.3).
+    assert_eq!(req.headers.find("HOST"), Some("example.com"));
+    assert_eq!(req.headers.find("x-a"), Some("1"));
+    assert_eq!(req.headers.len(), 2);
+    assert_eq!(req.path, "/x");
   }
 }
