@@ -191,8 +191,17 @@ fn profile_loop() {
 }
 
 /// The parameters of the in-tree encoder this sweep was written for, in rimu-gzip's terms: one
-/// step of lazy evaluation or greedy parsing, and no block splitting.
+/// step of lazy evaluation or greedy parsing, no length-3 matches, no skipping and no block splitting.
 fn old_params(search_depth: u16, nice_match: u16, good_match: u16, max_insert: u16, lazy: bool) -> GzipParams {
   let strategy = if lazy { GzipStrategy::LazyOnce } else { GzipStrategy::Greedy };
-  GzipParams { strategy, search_depth, nice_match, good_match, max_insert, split_blocks: false }
+  GzipParams {
+    strategy,
+    search_depth,
+    nice_match,
+    good_match,
+    max_insert,
+    skip_accel: 0,
+    len3: false,
+    split_blocks: false,
+  }
 }
