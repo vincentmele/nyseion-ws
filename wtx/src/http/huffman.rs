@@ -40,21 +40,15 @@ where
   let is_not_final = curr_state != 0 && !end_of_string;
   if has_error || is_not_final {
     cold_path();
-    #[cfg(feature = "http2")]
     return Err(crate::Error::Http2ErrorGoAway(
       Http2ErrorCode::CompressionError,
       Http2Error::UnexpectedEndingHuffman,
     ));
-    #[cfg(not(feature = "http2"))]
-    return Err(crate::Error::Http3(crate::http3::Http3Error::InvalidHuffman));
   }
 
   if has_overflow {
     cold_path();
-    #[cfg(feature = "http2")]
     return Err(protocol_err(Http2Error::HpackDecodingBufferIsTooSmall));
-    #[cfg(not(feature = "http2"))]
-    return Err(crate::Error::Http3(crate::http3::Http3Error::HuffmanOutputTooLong));
   }
 
   Ok(())

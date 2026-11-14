@@ -1,6 +1,6 @@
-//! The framework end to end, over UDP on loopback: a QUIC client of tests (the client connection
-//! of `quic::testing`, whose application collects what arrives on every stream) against workers
-//! run by [`Http3ServerFramework::run_in_threads`].
+//! The framework end to end, over UDP on loopback: a QUIC client of tests (rimu-quic's test
+//! client, with the application of rimu-h3's test harness, which collects what arrives on every
+//! stream) against workers run by [`Http3ServerFramework::run_in_threads`].
 
 use crate::{
   collections::{ArrayVectorCopy, VectorUsize},
@@ -19,17 +19,8 @@ use crate::{
       router_handler::{SlotPoll, TaskSlots},
     },
   },
-  http3::{
-    H3FrameTy, H3Params, decode_frame_header,
-    testing::{Response, headers_frame, response_of},
-  },
   misc::SharedBytes,
-  quic::{
-    Cid, ConnHandle, ConnParams, ConnState, DatagramMeta, QuicParams, RecvOutcome, SteeringProgram,
-    StreamId, decode_varint,
-    testing::{ClientConn, Net, Parts, SERVER_ADDR, TestApp, client_conn, server_tls_config},
-  },
-  rng::{ChaCha20, CryptoSeedableRng as _, Rng as _},
+  rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AtomicU64},
   tests::_count_allocations_in,
 };
@@ -47,6 +38,18 @@ use core::{
   sync::atomic::Ordering,
   task::{Context, Poll, Waker},
   time::Duration,
+};
+use rimu_h3::{
+  H3Params, H3Server,
+  frame::{H3FrameTy, decode_frame_header},
+  testing::{ClientApp, Response, TestHandler, data_frame, headers_frame, response_of},
+};
+use rimu_quic::{
+  ConnHandle, DatagramMeta, Endpoint as QuicEndpoint, EndpointKeys, QuicParams, RecvOutcome,
+  SteeringProgram, StreamId, WorkerLoads,
+  client::{TEST_CERT_PEM, TEST_KEY_PEM, TestClient},
+  rustls::RustlsConfig,
+  varint::decode_varint,
 };
 use std::{
   net::UdpSocket,
@@ -71,16 +74,23 @@ pub(crate) struct TestHooks {
   pub(crate) trims: Option<Arc<Mutex<Vec<(PoolSizes, PoolSizes)>>>>,
 }
 
-/// The sizes of the pools of a worker that an idle trim frees down: free connection states of the
-/// QUIC pools, TLS handshake states of the thread and boxes of the HTTP/3 connection layer.
+/// The sizes of the pools of a worker that an idle trim frees down: the bytes of the QUIC pools
+/// and the boxes of the HTTP/3 connection layer. TLS keeps no state between handshakes (rustls).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PoolSizes {
-  /// Free states of QUIC connections.
-  pub(crate) quic_conns: usize,
-  /// Free TLS handshake states of the thread.
-  pub(crate) tls_states: usize,
+  /// Bytes of the pools of the QUIC endpoint.
+  pub(crate) quic_bytes: usize,
   /// Free boxes of HTTP/3 connections.
   pub(crate) h3_conns: usize,
+}
+
+/// The TLS configuration of rimu-quic's test certificate (ECDSA P-256, `localhost`), offering `h3`.
+fn server_tls_config() -> RustlsConfig {
+  RustlsConfig::builder()
+    .cert_chain_pem(TEST_CERT_PEM)
+    .private_key_pem(TEST_KEY_PEM)
+    .build()
+    .unwrap()
 }
 
 // ---- endpoints
@@ -328,7 +338,7 @@ fn serve(opts: Opts) -> Served {
   let thread_errors = errors.clone();
   let error_cb = move |err: crate::Error| thread_errors.lock().unwrap().push(format!("{err:?}"));
   let reuseport = opts.workers > 1;
-  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _, _>::new(
+  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random().unwrap(),
     server_tls_config(),
@@ -389,10 +399,8 @@ fn serve(opts: Opts) -> Served {
 
 /// A client of tests over a UDP socket of its own.
 struct Client {
-  app: TestApp,
-  conn: ClientConn,
+  conn: TestClient<ClientApp>,
   epoch: Instant,
-  parts: Parts,
   rx: Vec<u8>,
   server: SocketAddr,
   socket: UdpSocket,
@@ -401,29 +409,16 @@ struct Client {
 impl Client {
   fn new(server: SocketAddr) -> Self {
     let socket = UdpSocket::bind(SocketAddr::new(server.ip(), 0)).unwrap();
-    let mut rng = ChaCha20::from_std_random().unwrap();
-    let (mut local, mut original) = ([0; 8], [0; 8]);
-    rng.fill_slice(&mut local);
-    rng.fill_slice(&mut original);
-    let mut parts = Parts::new();
-    let cids = (Cid::new(&local).unwrap(), Cid::new(&original).unwrap());
-    let conn =
-      client_conn(&ConnParams::default(), cids.0, cids.1, &mut rng, 0, &mut parts.pools, |_| {});
-    Self {
-      app: TestApp::default(),
-      conn,
-      epoch: Instant::now(),
-      parts,
-      rx: vec![0; 1 << 16],
-      server,
-      socket,
-    }
+    let mut rng = rimu_quic::rng::ChaCha20::from_os().unwrap();
+    let params = QuicParams::default();
+    let conn = TestClient::new(ClientApp::default(), &params, server, b"h3", &mut rng, 0).unwrap();
+    Self { conn, epoch: Instant::now(), rx: vec![0; 1 << 16], server, socket }
   }
 
   /// A client whose handshake is done.
   fn connect(server: SocketAddr) -> Self {
     let mut this = Self::new(server);
-    assert!(this.run_until(|el| el.conn.state() == ConnState::Confirmed), "no handshake");
+    assert!(this.run_until(|el| el.conn.is_confirmed()), "no handshake");
     this
   }
 
@@ -431,41 +426,25 @@ impl Client {
     u64::try_from(self.epoch.elapsed().as_micros()).unwrap()
   }
 
+  /// What arrived, by stream.
+  fn app(&self) -> &ClientApp {
+    self.conn.app()
+  }
+
   /// Sends what the connection has to send.
   fn flush(&mut self) {
     let now_us = self.now_us();
-    let _ = self.conn.flush(now_us, &mut self.parts.tx, &mut self.app, &mut self.parts.pools);
-    loop {
-      let next =
-        self.parts.tx.pending().next().map(|el| (el.id, el.bytes.to_vec(), el.segment_size));
-      let Some((id, bytes, segment)) = next else {
-        break;
-      };
-      self.parts.tx.mark_submitted(id);
-      self.parts.tx.release(id);
-      for datagram in bytes.chunks(usize::from(segment).max(1)) {
-        let _ = self.socket.send_to(datagram, self.server).unwrap();
-      }
-    }
+    let Self { conn, server, socket, .. } = self;
+    let _ = conn.flush(now_us, |datagram| {
+      let _ = socket.send_to(datagram, *server).unwrap();
+    });
   }
 
   /// Sends what the connection has to send, then takes what arrives for at most `wait` (or until
   /// the next timer of the connection), and runs the timers that are due.
   fn step(&mut self, wait: Duration) {
+    self.flush();
     let now_us = self.now_us();
-    let _ = self.conn.flush(now_us, &mut self.parts.tx, &mut self.app, &mut self.parts.pools);
-    loop {
-      let next =
-        self.parts.tx.pending().next().map(|el| (el.id, el.bytes.to_vec(), el.segment_size));
-      let Some((id, bytes, segment)) = next else {
-        break;
-      };
-      self.parts.tx.mark_submitted(id);
-      self.parts.tx.release(id);
-      for datagram in bytes.chunks(usize::from(segment).max(1)) {
-        let _ = self.socket.send_to(datagram, self.server).unwrap();
-      }
-    }
     let until_timer = self
       .conn
       .next_deadline()
@@ -475,10 +454,7 @@ impl Client {
       match self.socket.recv_from(&mut self.rx) {
         Ok((len, _)) => {
           let now_us = self.now_us();
-          let meta = DatagramMeta { peer: SERVER_ADDR, local: None, segment_size: None };
-          let datagram = &mut self.rx[..len];
-          let _ =
-            self.conn.recv_datagram(now_us, datagram, meta, &mut self.app, &mut self.parts.pools);
+          self.conn.recv(now_us, &mut self.rx[..len]);
           self.socket.set_nonblocking(true).unwrap();
         }
         Err(err)
@@ -495,7 +471,7 @@ impl Client {
     self.socket.set_nonblocking(false).unwrap();
     let now_us = self.now_us();
     if self.conn.next_deadline().is_some_and(|el| el <= now_us) {
-      self.conn.on_timeout(now_us, &mut self.app, &mut self.parts.pools);
+      self.conn.on_timeout(now_us);
     }
   }
 
@@ -514,10 +490,10 @@ impl Client {
   /// Opens a request stream and writes `bytes` on it, with `fin`.
   fn send(&mut self, bytes: &[u8], fin: bool) -> StreamId {
     let now_us = self.now_us();
-    let rslt = self.conn.with_ctx(now_us, &mut self.parts.pools, |cx| {
+    let rslt = self.conn.with_ctx(now_us, |_, cx| {
       let id = cx.open_bidi()?;
       cx.write(id, bytes, fin)?;
-      Ok::<_, crate::Error>(id)
+      Ok::<_, rimu_quic::Error>(id)
     });
     rslt.unwrap()
   }
@@ -535,13 +511,13 @@ impl Client {
   }
 
   fn done(&self, id: StreamId) -> bool {
-    self.app.streams.get(&id.0).is_some_and(|el| el.fin)
+    self.app().streams.get(&id.0).is_some_and(|el| el.fin)
   }
 
   /// The response of stream `id`, once complete.
   fn wait(&mut self, id: StreamId) -> Response {
     assert!(self.run_until(|el| el.done(id)), "no response on {id:?}");
-    response_of(&self.app, id).unwrap()
+    response_of(self.app(), id).unwrap()
   }
 
   fn get(&mut self, path: &str, extra: &[(&[u8], &[u8])]) -> Response {
@@ -551,7 +527,7 @@ impl Client {
 
   /// The frames of the control stream of the server: type and payload.
   fn control_frames(&self) -> Vec<(u64, Vec<u8>)> {
-    let Some(log) = self.app.streams.get(&3) else {
+    let Some(log) = self.app().streams.get(&3) else {
       return Vec::new();
     };
     let (_, len) = decode_varint(&log.data).unwrap();
@@ -575,13 +551,7 @@ impl Client {
 
   /// The CONNECTION_CLOSE of the server, once it arrived.
   fn peer_close(&self) -> Option<(bool, u64)> {
-    self.conn.test_client().and_then(|el| el.peer_close)
-  }
-}
-
-impl Drop for Client {
-  fn drop(&mut self) {
-    self.conn.abort(&mut self.app, &mut self.parts.pools);
+    self.conn.peer_close()
   }
 }
 
@@ -624,7 +594,7 @@ fn baseline2_route_answers_2() {
   assert_eq!(worker.fin_flushes_acked, worker.fin_flushes_ack_owed, "{worker:?}");
   assert_eq!(worker.fin_flushes_owed_and_acked, worker.fin_flushes_ack_owed, "{worker:?}");
   assert_eq!((worker.zc_sends, worker.zc_fallbacks), (0, 0), "{worker:?}");
-  assert_eq!(client.conn.state(), ConnState::Confirmed);
+  assert!(client.conn.is_confirmed());
   assert!(served.errors().is_empty(), "{:?}", served.errors());
 }
 
@@ -652,7 +622,7 @@ fn static_file_br_twin_served_by_reference() {
   let held = served.seen.lock().unwrap().pop().unwrap();
   assert_eq!(held.as_slice(), br.as_slice());
   assert!(held.strong_count() > 2, "{}", held.strong_count());
-  let rsp = response_of(&client.app, id).unwrap();
+  let rsp = response_of(client.app(), id).unwrap();
   assert_eq!(status(&rsp), b"200");
   assert_eq!(rsp.field(b"content-encoding"), Some(&b"br"[..]));
   assert_eq!(rsp.field(b"vary"), Some(&b"accept-encoding"[..]));
@@ -751,7 +721,7 @@ fn post_body_over_window_reaches_handler() {
     (b"content-length", len.as_bytes()),
   ];
   let mut request = headers_frame(&fields);
-  request.extend_from_slice(&crate::http3::testing::data_frame(&body));
+  request.extend_from_slice(&data_frame(&body));
   let id = client.send(&request, true);
   let rsp = client.wait(id);
   let sum: u64 = body.iter().map(|el| u64::from(*el)).sum();
@@ -773,9 +743,9 @@ fn handler_panic_answers_500_and_other_streams_continue() {
     let rsp = client.wait(id);
     assert_eq!(status(&rsp), expected, "{id:?}");
   }
-  assert_eq!(response_of(&client.app, fine).unwrap().body, b"5");
+  assert_eq!(response_of(client.app(), fine).unwrap().body, b"5");
   assert_eq!(client.get("/baseline2?a=1&b=1", &[]).body, b"2");
-  assert_eq!(client.conn.state(), ConnState::Confirmed);
+  assert!(client.conn.is_confirmed());
   client.wait_server(&served, |el| el[0].handler_panics == 2);
   assert_eq!(served.worker(0).parked, 0);
 }
@@ -816,13 +786,13 @@ fn abandoned_and_orphaned_parked_requests_are_dropped() {
   let id = client.request(b"GET", "/sleep?ms=5000", &[]);
   client.wait_server(&served, |el| el[0].parked == 1);
   let now_us = client.now_us();
-  client.conn.with_ctx(now_us, &mut client.parts.pools, |cx| cx.reset(id, 0x10c));
+  client.conn.with_ctx(now_us, |_, cx| cx.reset(id, 0x10c));
   client.step(Duration::from_millis(1));
   client.wait_server(&served, |el| el[0].parked == 0);
   let _id = client.request(b"GET", "/sleep?ms=100", &[]);
   client.wait_server(&served, |el| el[0].parked == 1);
   let now_us = client.now_us();
-  client.conn.close_app(now_us, 0x100);
+  client.conn.close(now_us, 0x100);
   client.step(Duration::from_millis(1));
   client.wait_server(&served, |el| el[0].parked == 0 && el[0].conns == 0);
   // The timer of the dropped future fires into nothing; the next client is served
@@ -915,7 +885,7 @@ fn graceful_shutdown_drains_in_flight() {
 
 // A program that the kernel refuses: it does not end with a return.
 fn broken_program(_: u8) -> SteeringProgram {
-  [libc::sock_filter { code: 0, jt: 0, jf: 0, k: 0 }; crate::quic::STEERING_PROGRAM_LEN]
+  [libc::sock_filter { code: 0, jt: 0, jf: 0, k: 0 }; rimu_quic::STEERING_PROGRAM_LEN]
 }
 
 // Brief step 1 and ruling T14-f: if the steering program can not be attached, the error callback
@@ -941,7 +911,7 @@ fn cbpf_attach_failure_falls_back_to_kernel_hash() {
   }
   // Each connection is on the worker that its CID names, which served its request
   for (idx, worker) in served.stats.workers().iter().enumerate() {
-    let on_it = clients.iter().filter(|el| usize::from(el.conn.peer_cid().as_slice()[0]) == idx);
+    let on_it = clients.iter().filter(|el| usize::from(el.conn.peer_cid()[0]) == idx);
     let on_it = u64::try_from(on_it.count()).unwrap();
     assert_eq!((worker.conns, worker.requests), (on_it, on_it), "worker {idx}: {worker:?}");
   }
@@ -962,11 +932,56 @@ fn workers_have_generators_of_their_own() {
   for client in [&mut first, &mut second] {
     assert_eq!(client.get("/baseline2?a=1&b=1", &[]).body, b"2");
   }
-  let (lhs, rhs) = (first.conn.peer_cid().as_slice(), second.conn.peer_cid().as_slice());
+  let (lhs, rhs) = (first.conn.peer_cid(), second.conn.peer_cid());
   assert_ne!(lhs[0], rhs[0], "both on worker {}", lhs[0]);
   assert_ne!(lhs[1..], rhs[1..]);
   assert!(served.stats.workers().iter().all(|el| el.cid_steering));
   assert!(served.errors().is_empty(), "{:?}", served.errors());
+}
+
+// The endpoints of two workers of one process (their keys and loads shared) and their HTTP/3
+// applications, for the tests of forwarding between workers.
+type Worker = (QuicEndpoint<H3Server<TestHandler>>, H3Server<TestHandler>);
+
+#[allow(clippy::disallowed_types, reason = "the endpoint takes the standard `Arc`")]
+fn two_workers() -> (Vec<Worker>, std::sync::Arc<WorkerLoads>) {
+  let mut rng = rimu_quic::rng::ChaCha20::from_key([9; 32]);
+  let keys = std::sync::Arc::new(EndpointKeys::new(&mut rng));
+  let loads = std::sync::Arc::new(WorkerLoads::new(2));
+  let workers = (0..2)
+    .map(|worker| {
+      let tls = rimu_h3::testing::server_tls();
+      let quic = QuicParams::default();
+      let endpoint =
+        QuicEndpoint::new(quic, worker, 2, tls, &mut rng, Some(loads.clone()), keys.clone())
+          .unwrap();
+      (endpoint, H3Server::new(TestHandler::new(b"x"), H3Params::default()))
+    })
+    .collect();
+  (workers, loads)
+}
+
+// The first datagrams of a new client, as they leave it.
+fn first_flight(server: SocketAddr, now_us: u64) -> Vec<Vec<u8>> {
+  let mut rng = rimu_quic::rng::ChaCha20::from_os().unwrap();
+  let params = QuicParams::default();
+  let mut client =
+    TestClient::new(ClientApp::default(), &params, server, b"h3", &mut rng, now_us).unwrap();
+  let mut rslt = Vec::new();
+  let _ = client.flush(now_us, |datagram| rslt.push(datagram.to_vec()));
+  rslt
+}
+
+// Worker 0 takes a connection of its own (it was the least loaded), which makes it the busier:
+// the first Initial of the next client that reaches it goes to worker 1.
+fn load_worker_0(workers: &mut [Worker], now_us: u64) {
+  let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 40_000);
+  let meta = DatagramMeta { peer, local: None, segment_size: None };
+  let (endpoint, app) = &mut workers[0];
+  for mut datagram in first_flight(peer, now_us) {
+    assert_eq!(endpoint.recv(now_us, &mut datagram, meta, app), RecvOutcome::Done);
+  }
+  assert_eq!(endpoint.stats().conns, 1);
 }
 
 // Ruling T14-e: a datagram for a worker whose inbox does not take it, or for a worker that is not
@@ -974,60 +989,60 @@ fn workers_have_generators_of_their_own() {
 #[cfg_attr(miri, ignore)]
 #[test]
 fn forward_dropped_gives_back_the_place() {
-  let mut net = Net::new(2, QuicParams::default(), &TestApp::default());
-  // Worker 0 is the busier: the first Initial of a client that reaches it goes to worker 1
-  net.loads.placed(0);
-  let client = net.add_client();
-  let mut datagrams = net.client_datagrams(client);
+  let (mut workers, loads) = two_workers();
+  let now_us = 1_000_000;
+  load_worker_0(&mut workers, now_us);
   let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50_000);
+  let mut datagrams = first_flight(peer, now_us);
   let meta = DatagramMeta { peer, local: None, segment_size: None };
   let closed = UringRuntime::new().unwrap().block_on(async {
     let params = UdpParams { reuseport: false, ..UdpParams::new() };
     let socket = UringUdpSocket::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0), &params);
     socket.unwrap().inbox()
   });
-  let now_us = net.now_us;
   for inboxes in [vec![closed.clone(), closed.clone()], vec![closed]] {
-    let server = &mut net.servers[0];
-    let outcome = server.endpoint.recv(now_us, &mut datagrams[0], meta, &mut server.app);
+    let (endpoint, app) = &mut workers[0];
+    let outcome = endpoint.recv(now_us, &mut datagrams[0], meta, app);
     assert_eq!(outcome, RecvOutcome::Forward { worker: 1 });
-    assert_eq!(net.loads.load(1), 1);
+    assert_eq!(loads.load(1), 1);
     let inboxes: Vec<UdpInbox> = inboxes;
-    assert!(!forward(&mut net.servers[0].endpoint, &inboxes, &datagrams[0], meta, 1));
-    assert_eq!(net.loads.load(1), 0);
+    assert!(!forward(endpoint, &inboxes, &datagrams[0], meta, 1));
+    assert_eq!(loads.load(1), 0);
+  }
+  for (endpoint, app) in &mut workers {
+    endpoint.abort_all(app);
   }
 }
 
 // Ruling T16-b (carried from task 14): a datagram that the kernel coalesced (GRO) and that goes to
 // another worker is handed over segment by segment, each within an inbox entry; the place that the
 // first Initial packet took on that worker is counted once (each later segment that carries a
-// place takes one more, which the other worker gives back when it opens nothing).
+// place takes one more, which the other worker gives back when it opens nothing). The two segments
+// are the first Initial of a client and a copy of it, which opens nothing.
 #[cfg_attr(miri, ignore)]
 #[test]
 fn coalesced_datagram_is_forwarded_segment_by_segment() {
-  let mut net = Net::new(2, QuicParams::default(), &TestApp::default());
-  net.loads.placed(0);
-  let client = net.add_split_client(1500);
-  let datagrams = net.client_datagrams(client);
-  assert_eq!(datagrams.len(), 2);
+  let (mut workers, loads) = two_workers();
+  let now_us = 1_000_000;
+  load_worker_0(&mut workers, now_us);
+  let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50_001);
+  let first = first_flight(peer, now_us).swap_remove(0);
+  let datagrams = [first.clone(), first];
   let segment = datagrams[0].len();
-  assert!(datagrams[1].len() <= segment);
   let coalesced: Vec<u8> = datagrams.concat();
   assert!(coalesced.len() > UdpInbox::DATAGRAM_LEN);
-  let peer = net.clients[client].addr;
   let meta =
     DatagramMeta { peer, local: None, segment_size: Some(u16::try_from(segment).unwrap()) };
-  let now_us = net.now_us;
-  let server = &mut net.servers[0];
-  let outcome = server.endpoint.recv(now_us, &mut coalesced.clone(), meta, &mut server.app);
+  let (endpoint, app) = &mut workers[0];
+  let outcome = endpoint.recv(now_us, &mut coalesced.clone(), meta, app);
   assert_eq!(outcome, RecvOutcome::Forward { worker: 1 });
-  assert_eq!(net.loads.load(1), 1);
+  assert_eq!(loads.load(1), 1);
   let received = UringRuntime::new().unwrap().block_on(async {
     let params = UdpParams { reuseport: false, ..UdpParams::new() };
     let local = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
     let socket = UringUdpSocket::bind(local, &params).unwrap();
     let inboxes = vec![socket.inbox(), socket.inbox()];
-    assert!(forward(&mut net.servers[0].endpoint, &inboxes, &coalesced, meta, 1));
+    assert!(forward(&mut workers[0].0, &inboxes, &coalesced, meta, 1));
     let mut got = Vec::new();
     core::future::poll_fn(|cx| {
       let _count = socket.poll_inbox(cx, &mut |datagram, meta| got.push((datagram.to_vec(), meta)));
@@ -1042,13 +1057,16 @@ fn coalesced_datagram_is_forwarded_segment_by_segment() {
     assert_eq!(*got_meta, DatagramMeta { segment_size: None, ..meta });
   }
   // The other worker opens one connection from them, and its place is counted once
-  assert_eq!(net.loads.load(1), 2);
+  assert_eq!(loads.load(1), 2);
   for (mut datagram, meta) in received {
-    let server = &mut net.servers[1];
-    server.endpoint.recv_forwarded(now_us, &mut datagram, meta, &mut server.app);
+    let (endpoint, app) = &mut workers[1];
+    endpoint.recv_forwarded(now_us, &mut datagram, meta, app);
   }
-  assert_eq!(net.servers[1].endpoint.stats().conns, 1);
-  assert_eq!(net.loads.load(1), 1);
+  assert_eq!(workers[1].0.stats().conns, 1);
+  assert_eq!(loads.load(1), 1);
+  for (endpoint, app) in &mut workers {
+    endpoint.abort_all(app);
+  }
 }
 
 // Ruling T14-e: a worker that has had no connection for a while trims its pools, once per idle
@@ -1070,7 +1088,7 @@ fn idle_worker_trims_its_pools() {
     client.flush();
   }
   let begin = Instant::now();
-  while !clients.iter().all(|el| el.conn.state() == ConnState::Confirmed) {
+  while !clients.iter().all(|el| el.conn.is_confirmed()) {
     assert!(begin.elapsed() < TIMEOUT, "no handshake");
     for client in &mut clients {
       client.step(Duration::from_millis(1));
@@ -1079,15 +1097,14 @@ fn idle_worker_trims_its_pools() {
   for client in &mut clients {
     assert_eq!(client.get("/baseline2?a=1&b=1", &[]).body, b"2");
     let now_us = client.now_us();
-    client.conn.close_app(now_us, 0x100);
+    client.conn.close(now_us, 0x100);
     client.step(Duration::from_millis(1));
   }
   served.wait_stats(|el| el[0].conns == 0 && el[0].idle_trims == 2);
   std::thread::sleep(Duration::from_millis(300));
   assert_eq!(served.worker(0).idle_trims, 2);
   let (before, after) = trims.lock().unwrap()[1];
-  assert!(before.quic_conns > after.quic_conns && after.quic_conns <= 4, "{before:?} {after:?}");
-  assert!(before.tls_states > after.tls_states && after.tls_states <= 4, "{before:?} {after:?}");
+  assert!(before.quic_bytes > after.quic_bytes, "{before:?} {after:?}");
   assert!(before.h3_conns > after.h3_conns && after.h3_conns <= 4, "{before:?} {after:?}");
 }
 
@@ -1131,7 +1148,7 @@ fn steady_state_allocates_nothing(rfc9110: Option<bool>, worker: &'static Atomic
       client.step(Duration::from_millis(2));
       pending.retain(|id| {
         if client.done(*id) {
-          let log = client.app.streams.remove(&id.0).unwrap();
+          let log = client.conn.app_mut().streams.remove(&id.0).unwrap();
           assert!(log.data.len() > 4, "{id:?}");
           false
         } else {
@@ -1152,7 +1169,7 @@ fn steady_state_allocates_nothing(rfc9110: Option<bool>, worker: &'static Atomic
     let ids: Vec<StreamId> = (0..16).map(|_| client.request(b"GET", path, extra)).collect();
     for id in ids {
       let _rsp = client.wait(id);
-      let _log = client.app.streams.remove(&id.0);
+      let _log = client.conn.app_mut().streams.remove(&id.0);
     }
   }
   // The static files are checked against the disk once a second: once more here, not in the
@@ -1174,7 +1191,7 @@ fn steady_state_allocates_nothing(rfc9110: Option<bool>, worker: &'static Atomic
 fn run_local_serves_on_the_current_runtime() {
   let signal = ShutdownSignal::new();
   let (bound_tx, bound_rx) = mpsc::channel();
-  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _, _>::new(
+  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random().unwrap(),
     server_tls_config(),
@@ -1252,7 +1269,7 @@ fn startup_failure_reports_the_bind_error() {
   let held = UdpSocket::bind("127.0.0.1:0").unwrap();
   let addr = held.local_addr().unwrap().to_string();
   for _ in 0..5 {
-    let fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _, _>::new(
+    let fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _>::new(
       UringExecutor::default(),
       ChaCha20::from_std_random().unwrap(),
       server_tls_config(),
@@ -1471,7 +1488,7 @@ fn requests_reuse_the_clones_of_the_data_only_when_asked() {
   for (fresh, clones) in [(false, &REUSED), (true, &FRESH)] {
     let signal = ShutdownSignal::new();
     let (bound_tx, bound_rx) = mpsc::channel();
-    let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _, _>::new(
+    let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _>::new(
       UringExecutor::default(),
       ChaCha20::from_std_random().unwrap(),
       server_tls_config(),
@@ -1594,7 +1611,7 @@ async fn visits(state: State<'_, Visits>) -> crate::Result<VerbatimParams> {
 fn visits_seen(reuse: Option<bool>) -> Vec<Vec<u8>> {
   let signal = ShutdownSignal::new();
   let (bound_tx, bound_rx) = mpsc::channel();
-  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _, _>::new(
+  let mut fw = Http3ServerFramework::<(), fn(crate::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random().unwrap(),
     server_tls_config(),

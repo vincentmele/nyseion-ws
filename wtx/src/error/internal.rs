@@ -186,10 +186,26 @@ impl From<DequeueError> for Error {
 }
 
 #[cfg(feature = "quic")]
-impl From<crate::quic::QuicError> for Error {
+impl From<rimu_quic::Error> for Error {
   #[inline]
-  fn from(from: crate::quic::QuicError) -> Self {
+  fn from(from: rimu_quic::Error) -> Self {
     Self::Quic(from)
+  }
+}
+
+#[cfg(feature = "quic")]
+impl From<rimu_quic::QuicError> for Error {
+  #[inline]
+  fn from(from: rimu_quic::QuicError) -> Self {
+    Self::Quic(rimu_quic::Error::Quic(from))
+  }
+}
+
+#[cfg(feature = "http3")]
+impl From<rimu_h3::Error> for Error {
+  #[inline]
+  fn from(from: rimu_h3::Error) -> Self {
+    Self::Http3(from)
   }
 }
 

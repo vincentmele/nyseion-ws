@@ -48,6 +48,14 @@ where
   pub fn strong_count(this: &Self) -> usize {
     LocalTy::strong_count(&this.0)
   }
+
+  /// The `Arc` of the standard library inside, for a crate that takes one: no copy, no atomic
+  /// operation.
+  #[cfg(all(feature = "quic", not(feature = "portable-atomic-util")))]
+  #[inline]
+  pub(crate) fn into_std(this: Self) -> alloc::sync::Arc<T> {
+    this.0
+  }
 }
 
 impl<T> Clone for Arc<T>

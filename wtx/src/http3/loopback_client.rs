@@ -1,29 +1,19 @@
 //! A minimal HTTP/3 client over a UDP socket, for the in-process tests of binaries (feature
 //! `_h3-loopback-client`: test-only, not a public API, hidden from the documentation).
 //!
-//! It runs the client side of [`QuicConn`] that the tests of this crate use, with the static
-//! QPACK table only, and sends `GET`s without a control stream. It is not a general client: it
-//! trusts any certificate, follows no Retry and migrates nowhere. Its allocations are those of a
-//! test (a reply owns its bytes), so a test that counts the allocations of a server counts the
-//! threads of the server only.
+//! It runs rimu-quic's test client ([`TestClient`]), with the static QPACK table only, and sends
+//! `GET`s without a control stream. It is not a general client: it trusts any certificate,
+//! follows no Retry and migrates nowhere. Its allocations are those of a test (a reply owns its
+//! bytes), so a test that counts the allocations of a server counts the threads of the server
+//! only.
 
-use crate::{
-  collections::VectorUsize,
-  http3::{
-    DecodeOutcome, H3FrameTy, QpackDecoder, decode_frame_header, encode_frame_header, encode_static,
-  },
-  quic::{
-    Cid, ConnCtx, ConnParams, ConnState, DatagramMeta, QuicApp, QuicConn, QuicPools, StreamId,
-    TxArena,
-  },
-  rng::{ChaCha20, CryptoSeedableRng as _, Rng as _},
-  tls::{QuicTls, UnverifiedCtx},
-};
 use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
 use core::time::Duration;
+use rimu_h3::frame::{H3FrameTy, decode_frame_header, encode_frame_header};
+use rimu_qpack::{DecodeOutcome, DecodedField, Decoder, DecoderConfig, encode_static};
+use rimu_quic::{ConnCtx, QuicApp, QuicParams, StreamId, client::TestClient, rng::ChaCha20};
 use std::{net::UdpSocket, time::Instant};
 
-const ARENA_BYTES: usize = 64 * 1500;
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A response.
@@ -70,7 +60,7 @@ struct ClientApp {
 impl QuicApp for ClientApp {
   type ConnState = ();
 
-  fn on_established(&mut self, _: &mut ConnCtx<'_, ()>) -> crate::Result<()> {
+  fn on_established(&mut self, _: &mut ConnCtx<'_, ()>) -> rimu_quic::Result<()> {
     Ok(())
   }
 
@@ -80,7 +70,7 @@ impl QuicApp for ClientApp {
     id: StreamId,
     data: &[u8],
     fin: bool,
-  ) -> crate::Result<()> {
+  ) -> rimu_quic::Result<()> {
     let arrived = self.streams.entry(id.0).or_default();
     arrived.data.extend_from_slice(data);
     arrived.fin |= fin;
@@ -92,13 +82,18 @@ impl QuicApp for ClientApp {
     _: &mut ConnCtx<'_, ()>,
     id: StreamId,
     _: u64,
-  ) -> crate::Result<()> {
+  ) -> rimu_quic::Result<()> {
     // A reply that ends in a reset is never complete
     let _rslt = self.streams.remove(&id.0);
     Ok(())
   }
 
-  fn on_stop_sending(&mut self, _: &mut ConnCtx<'_, ()>, _: StreamId, _: u64) -> crate::Result<()> {
+  fn on_stop_sending(
+    &mut self,
+    _: &mut ConnCtx<'_, ()>,
+    _: StreamId,
+    _: u64,
+  ) -> rimu_quic::Result<()> {
     Ok(())
   }
 
@@ -110,14 +105,11 @@ impl QuicApp for ClientApp {
 /// A client of one connection to a server on `server`.
 #[derive(Debug)]
 pub struct H3LoopbackClient {
-  app: ClientApp,
-  conn: QuicConn<ClientApp, ChaCha20, UnverifiedCtx, true>,
+  conn: TestClient<ClientApp>,
   epoch: Instant,
-  pools: QuicPools,
   rx: Vec<u8>,
   server: core::net::SocketAddr,
   socket: UdpSocket,
-  tx: TxArena,
 }
 
 impl H3LoopbackClient {
@@ -129,31 +121,13 @@ impl H3LoopbackClient {
   pub fn connect(server: core::net::SocketAddr) -> crate::Result<Self> {
     let bind = core::net::SocketAddr::new(server.ip(), 0);
     let socket = UdpSocket::bind(bind)?;
-    let mut rng = ChaCha20::from_std_random()?;
-    let (mut local, mut original) = ([0; 8], [0; 8]);
-    rng.fill_slice(&mut local);
-    rng.fill_slice(&mut original);
-    let (local, original) = (Cid::new(&local)?, Cid::new(&original)?);
-    let params = ConnParams::default();
-    let mut pools = QuicPools::new();
-    let mut transport = [0; 256];
-    let len = params.transport_params(local, None).encode(&mut transport)?;
-    let tls =
-      QuicTls::new_client("localhost", b"h3", transport.get(..len).unwrap_or(&[]), &mut rng)?;
-    let conn = QuicConn::new_client(&params, local, original, server, tls, 0, &mut pools)?;
-    let mut this = Self {
-      app: ClientApp::default(),
-      conn,
-      epoch: Instant::now(),
-      pools,
-      rx: vec![0; 1 << 16],
-      server,
-      socket,
-      tx: TxArena::new(ARENA_BYTES)?,
-    };
+    let mut rng = ChaCha20::from_os()?;
+    let params = QuicParams::default();
+    let conn = TestClient::new(ClientApp::default(), &params, server, b"h3", &mut rng, 0)?;
+    let mut this = Self { conn, epoch: Instant::now(), rx: vec![0; 1 << 16], server, socket };
     let begin = Instant::now();
-    while this.conn.state() != ConnState::Confirmed {
-      if begin.elapsed() > TIMEOUT || this.app.closed {
+    while !this.conn.is_confirmed() {
+      if begin.elapsed() > TIMEOUT || this.conn.app().closed {
         return Err(std::io::Error::other("the HTTP/3 handshake did not complete").into());
       }
       this.poll(Duration::from_millis(5))?;
@@ -168,7 +142,7 @@ impl H3LoopbackClient {
   /// If the datagram cannot be sent.
   pub fn close(&mut self) -> crate::Result<()> {
     let now_us = self.now_us();
-    self.conn.close_app(now_us, 0x100);
+    self.conn.close(now_us, 0x100);
     self.flush()
   }
 
@@ -190,10 +164,7 @@ impl H3LoopbackClient {
       match self.socket.recv_from(&mut self.rx) {
         Ok((len, _)) => {
           let now_us = self.now_us();
-          let meta = DatagramMeta { peer: self.server, local: None, segment_size: None };
-          let datagram = self.rx.get_mut(..len).unwrap_or_default();
-          let _rslt =
-            self.conn.recv_datagram(now_us, datagram, meta, &mut self.app, &mut self.pools);
+          self.conn.recv(now_us, self.rx.get_mut(..len).unwrap_or_default());
           // The rest of the burst without waiting
           self.socket.set_nonblocking(true)?;
         }
@@ -211,7 +182,7 @@ impl H3LoopbackClient {
     self.socket.set_nonblocking(false)?;
     let now_us = self.now_us();
     if self.conn.next_deadline().is_some_and(|el| el <= now_us) {
-      self.conn.on_timeout(now_us, &mut self.app, &mut self.pools);
+      self.conn.on_timeout(now_us);
     }
     Ok(())
   }
@@ -229,18 +200,18 @@ impl H3LoopbackClient {
       (b":path", get.path.as_bytes()),
     ];
     fields.extend(get.fields.iter().map(|el| (el.0.as_bytes(), el.1.as_bytes())));
-    let mut section = VectorUsize::new();
-    encode_static(&fields, &mut section)?;
+    let mut section = Vec::new();
+    encode_static(fields.iter().copied(), &mut section);
     let mut frame = vec![0u8; 16];
     let len = encode_frame_header(H3FrameTy::Headers, section.len() as u64, &mut frame)
       .ok_or(crate::Error::ProgrammingError)?;
     frame.truncate(len);
     frame.extend_from_slice(&section);
     let now_us = self.now_us();
-    let id = self.conn.with_ctx(now_us, &mut self.pools, |cx| {
+    let id = self.conn.with_ctx(now_us, |_, cx| {
       let id = cx.open_bidi()?;
       cx.write(id, &frame, true)?;
-      Ok::<_, crate::Error>(id)
+      Ok::<_, rimu_quic::Error>(id)
     })?;
     Ok(id.0)
   }
@@ -251,10 +222,10 @@ impl H3LoopbackClient {
   ///
   /// If the reply is not a well-formed response with a `:status`.
   pub fn take(&mut self, id: u64) -> crate::Result<Option<H3Reply>> {
-    if !self.app.streams.get(&id).is_some_and(|el| el.fin) {
+    if !self.conn.app().streams.get(&id).is_some_and(|el| el.fin) {
       return Ok(None);
     }
-    let Some(arrived) = self.app.streams.remove(&id) else {
+    let Some(arrived) = self.conn.app_mut().streams.remove(&id) else {
       return Ok(None);
     };
     parse(id, &arrived.data).map(Some)
@@ -272,7 +243,7 @@ impl H3LoopbackClient {
       if let Some(reply) = self.take(id)? {
         return Ok(reply);
       }
-      if begin.elapsed() > TIMEOUT || self.app.closed {
+      if begin.elapsed() > TIMEOUT || self.conn.app().closed {
         return Err(std::io::Error::other("no HTTP/3 reply").into());
       }
       self.poll(Duration::from_millis(5))?;
@@ -319,7 +290,7 @@ impl H3LoopbackClient {
           nth = nth.wrapping_add(1);
         }
       }
-      if last_progress.elapsed() > TIMEOUT || self.app.closed {
+      if last_progress.elapsed() > TIMEOUT || self.conn.app().closed {
         return Err(std::io::Error::other("the HTTP/3 replies stopped").into());
       }
     }
@@ -338,18 +309,16 @@ impl H3LoopbackClient {
 
   fn flush(&mut self) -> crate::Result<()> {
     let now_us = self.now_us();
-    let _outcome = self.conn.flush(now_us, &mut self.tx, &mut self.app, &mut self.pools);
-    loop {
-      let next = self.tx.pending().next().map(|el| (el.id, el.bytes.to_vec(), el.segment_size));
-      let Some((id, bytes, segment)) = next else {
-        return Ok(());
-      };
-      self.tx.mark_submitted(id);
-      self.tx.release(id);
-      for datagram in bytes.chunks(usize::from(segment).max(1)) {
-        let _len = self.socket.send_to(datagram, self.server)?;
+    let Self { conn, server, socket, .. } = self;
+    let mut rslt = Ok(());
+    let _sent = conn.flush(now_us, |datagram| {
+      if rslt.is_ok()
+        && let Err(err) = socket.send_to(datagram, *server)
+      {
+        rslt = Err(err);
       }
-    }
+    });
+    Ok(rslt?)
   }
 
   fn now_us(&self) -> u64 {
@@ -357,18 +326,16 @@ impl H3LoopbackClient {
   }
 }
 
-impl Drop for H3LoopbackClient {
-  fn drop(&mut self) {
-    self.conn.abort(&mut self.app, &mut self.pools);
-  }
-}
-
 // The frames of a response: the fields of the HEADERS frame and the payloads of the DATA frames.
 fn parse(id: u64, bytes: &[u8]) -> crate::Result<H3Reply> {
   let bad = || crate::Error::from(std::io::Error::other("a malformed HTTP/3 response"));
   let mut reply = H3Reply::default();
-  let mut decoder = QpackDecoder::new(0, 0)?;
-  let mut scratch = VectorUsize::new();
+  let mut decoder = Decoder::new(DecoderConfig {
+    max_table_capacity: 0,
+    blocked_streams: 0,
+    memo_sections: 0,
+    ..DecoderConfig::default()
+  });
   let mut rest = bytes;
   while let Some((ty, len, header_len)) = decode_frame_header(rest)? {
     let len = usize::try_from(len).map_err(|_| bad())?;
@@ -376,11 +343,13 @@ fn parse(id: u64, bytes: &[u8]) -> crate::Result<H3Reply> {
     match ty {
       H3FrameTy::Headers => {
         let mut fields = Vec::new();
-        let outcome = decoder.decode(id, payload, &mut scratch, &mut |name, value| {
-          fields.push((name.to_vec(), value.to_vec()));
-          Ok(())
-        })?;
-        if outcome != (DecodeOutcome::Done { referenced_dynamic: false }) {
+        let outcome = decoder
+          .decode(id, payload, |field: DecodedField<'_>| {
+            fields.push((field.name.to_vec(), field.value.to_vec()));
+            Ok::<(), rimu_qpack::Error>(())
+          })
+          .map_err(|_| bad())?;
+        if !matches!(outcome, DecodeOutcome::Done { .. }) {
           return Err(bad());
         }
         let status = fields.iter().find(|el| el.0 == b":status").ok_or_else(bad)?;

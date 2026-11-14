@@ -16,14 +16,13 @@ mod tests;
 
 use crate::{
   executor::{Executor, Runtime as _, UdpParams},
-  http::{HttpRecvParams, ShutdownSignal},
-  http3::H3Params,
-  quic::QuicParams,
+  http::{HttpRecvParams, ShutdownSignal, http3_server_framework::endpoint_task::StdArc},
   sync::{Arc, AtomicBool, AtomicU64, CachePadded},
-  tls::TlsConfig,
 };
 use alloc::vec::Vec;
 use core::{num::NonZeroUsize, sync::atomic::Ordering, time::Duration};
+use rimu_h3::H3Params;
+use rimu_quic::{QuicParams, rustls::RustlsConfig};
 
 /// The stream of the manual-mode endpoints of the routers of [`Http3ServerFramework`]. HTTP/3 has
 /// no manual mode: a request routed to a manual-mode endpoint is answered with 500 and the error
@@ -353,7 +352,7 @@ impl StatsCell {
 /// the machine to itself; [`Http3ServerFramework::set_pin_workers`] turns it off for one that
 /// shares its CPUs with another server or other work.
 #[derive(Debug)]
-pub struct Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
+pub struct Http3ServerFramework<DA, EC, EX, RC, RNG> {
   content_length: bool,
   data: DA,
   date: bool,
@@ -370,27 +369,22 @@ pub struct Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   stats: Http3Stats,
   #[cfg(test)]
   test: tests::TestHooks,
-  tls_config: Arc<TlsConfig<TCX>>,
+  tls_config: StdArc<RustlsConfig>,
   udp_params: UdpParams,
 }
 
-impl<ERR, EX, RNG, TCX>
-  Http3ServerFramework<
-    (),
-    fn(ERR),
-    EX,
-    fn() -> Result<<EX as Executor>::LocalRuntime, ERR>,
-    RNG,
-    TCX,
-  >
+impl<ERR, EX, RNG>
+  Http3ServerFramework<(), fn(ERR), EX, fn() -> Result<<EX as Executor>::LocalRuntime, ERR>, RNG>
 where
   ERR: From<crate::Error>,
   EX: Executor,
 {
   /// Taking aside the provided parameters, everything else is set to default values. The QUIC
-  /// handshake negotiates the `h3` ALPN whatever `tls_config` lists.
+  /// handshake runs on rustls with `tls_config`: build it with `RustlsConfig::builder()` from the
+  /// certificate chain and private key (PEM or DER), whose application protocol is `h3` unless
+  /// the builder is told otherwise.
   #[inline]
-  pub fn new(executor: EX, rng: RNG, tls_config: TlsConfig<TCX>) -> crate::Result<Self> {
+  pub fn new(executor: EX, rng: RNG, tls_config: RustlsConfig) -> crate::Result<Self> {
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || Ok(EX::LocalRuntime::new()?);
     Ok(Self {
@@ -410,13 +404,13 @@ where
       stats: Http3Stats::new(),
       #[cfg(test)]
       test: tests::TestHooks::default(),
-      tls_config: Arc::new(tls_config),
+      tls_config: StdArc::new(tls_config),
       udp_params: UdpParams::new(),
     })
   }
 }
 
-impl<DA, EC, EX, RC, RNG, TCX> Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
+impl<DA, EC, EX, RC, RNG> Http3ServerFramework<DA, EC, EX, RC, RNG> {
   /// Mutable Random Number Generator: the generator of the process, which every worker derives
   /// its own from.
   #[inline]
@@ -427,7 +421,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   /// Shared data that each request gets a clone of: a fresh one by default, as on HTTP/2, or one
   /// that an earlier request of the same worker used with [`Self::set_reuse_data`].
   #[inline]
-  pub fn set_data<_DA>(self, value: _DA) -> Http3ServerFramework<_DA, EC, EX, RC, RNG, TCX> {
+  pub fn set_data<_DA>(self, value: _DA) -> Http3ServerFramework<_DA, EC, EX, RC, RNG> {
     Http3ServerFramework {
       content_length: self.content_length,
       data: value,
@@ -474,7 +468,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
 
   /// Sets the error callback function.
   #[inline]
-  pub fn set_error_cb<_EC>(self, value: _EC) -> Http3ServerFramework<DA, _EC, EX, RC, RNG, TCX> {
+  pub fn set_error_cb<_EC>(self, value: _EC) -> Http3ServerFramework<DA, _EC, EX, RC, RNG> {
     Http3ServerFramework {
       content_length: self.content_length,
       data: self.data,
@@ -515,7 +509,9 @@ impl<DA, EC, EX, RC, RNG, TCX> Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
     self
   }
 
-  /// See [`H3Params`].
+  /// See [`H3Params`]. Its `content_length` and `date` are those of [`Self::set_content_length`]
+  /// and [`Self::set_date`], which the router's responses follow, and its `response_encoder` is
+  /// not used: the responses are encoded with the static table of QPACK.
   #[inline]
   #[must_use = must_use_itself_doc!()]
   pub const fn set_h3_params(mut self, value: H3Params) -> Self {
@@ -539,10 +535,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http3ServerFramework<DA, EC, EX, RC, RNG, TCX> {
 
   /// Allows the tweaking of the chosen runtime. Called on the thread of each worker.
   #[inline]
-  pub fn set_local_runtime_cb<_RC>(
-    self,
-    value: _RC,
-  ) -> Http3ServerFramework<DA, EC, EX, _RC, RNG, TCX> {
+  pub fn set_local_runtime_cb<_RC>(self, value: _RC) -> Http3ServerFramework<DA, EC, EX, _RC, RNG> {
     Http3ServerFramework {
       content_length: self.content_length,
       data: self.data,
@@ -641,24 +634,22 @@ mod uring {
       http2_server_framework::{EndpointNode, HttpRouter, Middleware},
       http3_server_framework::{
         Http3ManualStream, Http3ServerFramework,
-        endpoint_task::{self, Startup, WorkerEnd, WorkerParams, cpu_order},
+        endpoint_task::{self, QuicRng, Startup, StdArc, WorkerEnd, WorkerParams, cpu_order},
       },
     },
-    quic::{EndpointKeys, WorkerLoads},
     rng::{CryptoRng, CryptoSeedableRng},
     sync::Arc,
-    tls::TlsCtxSk,
   };
   use alloc::vec::Vec;
+  use rimu_quic::{EndpointKeys, WorkerLoads};
 
-  impl<DA, EC, ER, RC, RNG, TCX> Http3ServerFramework<DA, EC, UringExecutor, RC, RNG, TCX>
+  impl<DA, EC, ER, RC, RNG> Http3ServerFramework<DA, EC, UringExecutor, RC, RNG>
   where
     EC: Clone + Fn(ER) + 'static,
     DA: Clone + 'static,
     ER: From<crate::Error> + 'static,
     RC: Clone + Fn() -> Result<UringRuntime, ER> + 'static,
     RNG: CryptoRng + CryptoSeedableRng + 'static,
-    TCX: TlsCtxSk + 'static,
   {
     /// Starts the server with one worker per thread, each an io_uring runtime with its own UDP
     /// socket (`SO_REUSEPORT`, bound to `addr` one after the other in the order of the workers).
@@ -678,7 +669,6 @@ mod uring {
       M: Middleware<DA, ER> + Send + Sync + 'static,
       RC: Send,
       RNG: Send,
-      TCX: Send + Sync,
     {
       let runtimes = if let Some(elem) = self.local_runtimes {
         elem.get()
@@ -690,8 +680,8 @@ mod uring {
       let http_router = Arc::new(hr);
       // Once per process (ruling T14-c): the keys of the stateless packets, and the generators of
       // the workers, each derived from the one of the process on this thread
-      let keys = Arc::new(EndpointKeys::new(&mut self.rng));
-      let loads = Arc::new(WorkerLoads::new(workers));
+      let keys = StdArc::new(EndpointKeys::new(&mut QuicRng(&mut self.rng)));
+      let loads = StdArc::new(WorkerLoads::new(workers));
       let startup = Arc::new(Startup::new(workers));
       let stats = self.stats.start(workers.into());
       let cpus = if self.pin_workers {
@@ -775,7 +765,7 @@ mod uring {
       EN: EndpointNode<DA, ER, Http3ManualStream> + 'static,
       M: Middleware<DA, ER> + 'static,
     {
-      let keys = Arc::new(EndpointKeys::new(&mut self.rng));
+      let keys = StdArc::new(EndpointKeys::new(&mut QuicRng(&mut self.rng)));
       let params = WorkerParams {
         addr: endpoint_task::resolve(addr)?,
         content_length: self.content_length,
@@ -787,7 +777,7 @@ mod uring {
         error_cb: self.error_cb,
         h3_params: self.h3_params,
         keys,
-        loads: Arc::new(crate::quic::WorkerLoads::new(1)),
+        loads: StdArc::new(WorkerLoads::new(1)),
         quic_params: self.quic_params,
         rng: RNG::from_crypto_rng(&mut self.rng)?,
         router: Arc::new(hr),

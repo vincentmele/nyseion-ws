@@ -28,6 +28,11 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 rimu-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
+# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0): rimu-quic and rimu-h3 at d674777,
+# rimu-qpack at e5bbbad (14 Nov 2026)
+rimu-h3 = { default-features = false, features = ["rustls", "std"], optional = true, path = "../../rimu-quic/rimu-h3" }
+rimu-qpack = { default-features = false, features = ["std"], optional = true, path = "../../rimu-qpack" }
+rimu-quic = { default-features = false, features = ["rustls"], optional = true, path = "../../rimu-quic/rimu-quic" }
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
@@ -62,6 +67,9 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 
 [dev-dependencies]
 miniz_oxide = { default-features = false, features = ["with-alloc"], version = "0.8" }
+# The in-process HTTP/3 harness of rimu-h3 (its test client's application and response parser),
+# for the tests of the HTTP/3 server framework
+rimu-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], path = "../../rimu-quic/rimu-h3" }
 rimu-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]
@@ -73,7 +81,7 @@ ccadb = ["x509"]
 client-api-framework = []
 crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel?/std", "std"]
 crypto = []
-crypto-alr = ["dep:aws-lc-rs", "crypto"]
+crypto-alr = ["dep:aws-lc-rs", "crypto", "rimu-quic?/aws-lc-rs"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
 crypto-ruco = [
   "dep:aead",
@@ -116,7 +124,7 @@ crypto-ruco = [
   "dep:spki",
   "dep:x25519-dalek",
 ]
-crypto-ring = ["crypto", "dep:ring", "ring?/alloc"]
+crypto-ring = ["crypto", "dep:ring", "ring?/alloc", "rimu-quic?/ring"]
 database = []
 database-tests = ["macros", "postgres", "schema-manager-dev"]
 default = []
@@ -137,7 +145,7 @@ http1-server-framework = ["http", "io-uring", "tls"]
 http2 = ["foldhash", "hashbrown", "http", "tls"]
 http2-client-pool = ["http2", "std"]
 http2-server-framework = ["http2"]
-http3 = ["http", "quic"]
+http3 = ["http", "quic", "dep:rimu-h3", "dep:rimu-qpack"]
 http3-server-framework = ["http2-server-framework", "http3", "io-uring"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
@@ -163,7 +171,7 @@ postgres-pool = ["postgres", "secret"]
 # `crypto-ring`, `crypto-alr` and `crypto-ruco` provide: `crypto-graviola` has no header protection,
 # and with one of the others that one protects the headers. A connection is at most 4 KiB with
 # `crypto-ring`; the expanded keys of `crypto-ruco` make it about 6.4 KiB.
-quic = ["tls", "foldhash", "hashbrown"]
+quic = ["tls", "foldhash", "hashbrown", "dep:rimu-quic", "std"]
 quick-protobuf = ["dep:quick-protobuf", "quick-protobuf?/std", "std"]
 rand_core = ["dep:rand_core"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal?/maths"]
@@ -196,7 +204,7 @@ _fuzz-conn = ["_fuzz", "_h3-loopback-client", "quic"]
 # Test-only, not a public API: the HTTP/3 client of `http3::loopback_client`, for the in-process
 # tests of binaries (wtx-internal enables it through its dev-dependencies only)
 _fuzz-gzip = ["gzip-encoder"]
-_h3-loopback-client = ["http3", "std"]
+_h3-loopback-client = ["http3", "std", "rimu-quic?/client"]
 _hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std"] # Does not decide for downstream users
 _integration-tests = ["ccadb", "serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]

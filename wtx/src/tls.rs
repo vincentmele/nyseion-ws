@@ -15,8 +15,6 @@ mod ktls_stream;
 mod misc;
 mod protocol;
 mod public_keys;
-#[cfg(feature = "quic")]
-mod quic_tls;
 mod read_record_info;
 mod record_content_ty;
 #[cfg(test)]
@@ -63,14 +61,6 @@ pub use protocol::{
   supported_groups::SupportedGroups,
 };
 pub use public_keys::{PublicKeyRef, PublicKeys, PublicKeysIter};
-#[cfg(feature = "quic")]
-pub(crate) use quic_tls::QuicTls;
-#[cfg(feature = "quic")]
-pub(crate) use quic_tls::next_rng;
-#[cfg(all(feature = "_h3-loopback-client", feature = "http3-server-framework", feature = "std"))]
-pub(crate) use quic_tls::pooled_state_bytes;
-#[cfg(all(test, feature = "quic", feature = "std"))]
-pub(crate) use quic_tls::pooled_states;
 pub use read_record_info::ReadRecordInfo;
 pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};
 pub use tls_buffer::TlsBuffer;
