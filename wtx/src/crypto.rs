@@ -15,7 +15,6 @@ mod dyn_signing_output;
 mod hash;
 mod hkdf;
 mod hmac;
-mod hp_key;
 mod signing_key;
 mod signing_output;
 
@@ -47,12 +46,6 @@ pub use hkdf::{
 pub use hmac::{
   Hmac, HmacDummy,
   global::{HmacSha256Global, HmacSha384Global},
-};
-#[cfg(all(target_arch = "x86_64", feature = "quic", feature = "std"))]
-pub(crate) use hp_key::x86_aesni::{Aes128HpAesNi, Aes256HpAesNi, has_aes_ni};
-pub use hp_key::{
-  HpKey, HpKeyDummy,
-  global::{Aes128HpGlobal, Aes256HpGlobal, Chacha20HpGlobal},
 };
 pub use signing_key::{
   SigningKey, SigningKeyDummy,
@@ -131,9 +124,6 @@ _create_key_wrappers!(
   Aes128GcmKeyAlr(aws_lc_rs::aead::LessSafeKey),
   Aes256GcmKeyAlr(aws_lc_rs::aead::LessSafeKey),
   Chacha20Poly1305KeyAlr(aws_lc_rs::aead::LessSafeKey),
-  Aes128HpAlr(aws_lc_rs::aead::quic::HeaderProtectionKey),
-  Aes256HpAlr(aws_lc_rs::aead::quic::HeaderProtectionKey),
-  Chacha20HpAlr(aws_lc_rs::aead::quic::HeaderProtectionKey),
 );
 
 #[cfg(feature = "crypto-graviola")]
@@ -236,9 +226,6 @@ _create_key_wrappers!(
   Aes128GcmKeyRing(ring::aead::LessSafeKey),
   Aes256GcmKeyRing(ring::aead::LessSafeKey),
   Chacha20Poly1305KeyRing(ring::aead::LessSafeKey),
-  Aes128HpRing(ring::aead::quic::HeaderProtectionKey),
-  Aes256HpRing(ring::aead::quic::HeaderProtectionKey),
-  Chacha20HpRing(ring::aead::quic::HeaderProtectionKey),
 );
 
 #[cfg(feature = "crypto-ruco")]
@@ -289,9 +276,6 @@ _create_key_wrappers!(
   Aes128GcmKeyRuco(aes_gcm::Aes128Gcm),
   Aes256GcmKeyRuco(aes_gcm::Aes256Gcm),
   Chacha20Poly1305KeyRuco(chacha20poly1305::ChaCha20Poly1305),
-  Aes128HpRuco(::aes::Aes128),
-  Aes256HpRuco(::aes::Aes256),
-  Chacha20HpRuco([u8; 32]),
 );
 
 /// Drops the value and then overwrites with zeros the bytes it occupied, with volatile writes that

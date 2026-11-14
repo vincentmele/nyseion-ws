@@ -78,11 +78,6 @@ impl<'qtp, G, TCG> ClientHello<'qtp, G, TCG> {
     &self.legacy_session_id
   }
 
-  /// The data of the `quic_transport_parameters` extension (RFC 9001 section 8.2), if present.
-  pub(crate) const fn quic_transport_parameters(&self) -> Option<&'qtp [u8]> {
-    self.quic_transport_parameters
-  }
-
   pub(crate) const fn supported_versions(&self) -> &SupportedVersionsClient {
     &self.supported_versions
   }
@@ -91,15 +86,6 @@ impl<'qtp, G, TCG> ClientHello<'qtp, G, TCG> {
     &self.tls_config
   }
 
-  /// The ClientHello of a QUIC client: with its transport parameters and without a
-  /// `legacy_session_id`, which is only there for the middlebox compatibility mode of TLS over
-  /// TCP (RFC 9001 section 8.4).
-  #[cfg(all(feature = "quic", any(test, feature = "_h3-loopback-client")))]
-  pub(crate) fn into_quic(mut self, transport_parameters: &'qtp [u8]) -> Self {
-    self.legacy_session_id.clear();
-    self.quic_transport_parameters = Some(transport_parameters);
-    self
-  }
 }
 
 impl<'de> Decode<'de, TlsCc>

@@ -30,7 +30,6 @@ use crate::{
     tls_hash::TlsHash,
   },
 };
-use core::ops::Range;
 
 /// TLS Acceptor
 ///
@@ -230,7 +229,6 @@ where
       &mut self.key_schedule,
       output,
       self.buffer.reader_buffer.buffer_mut(),
-      None,
       &mut self.rng,
       &mut self.transcript_hash,
     )
@@ -289,7 +287,7 @@ where
     writer_buffer.clear();
     // The length is known once the ServerHello is written
     writer_buffer.extend_from_copyable_slice(&build_header(RecordContentTy::Handshake, 0))?;
-    let output = negotiate_client_hello::<_, _, false>(
+    let output = negotiate_client_hello(
       plaintext,
       self.config.lease(),
       &mut self.key_schedule,
@@ -328,24 +326,15 @@ pub struct TlsAcceptOutput<RNG, S, TCX> {
 pub(crate) struct NegotiateOutput {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
-  /// QUIC only: where the data of the `quic_transport_parameters` extension lies in the
-  /// ClientHello message.
-  #[cfg_attr(not(feature = "quic"), expect(dead_code, reason = "only QUIC reads it"))]
-  pub(crate) quic_transport_parameters: Range<usize>,
   pub(crate) signature_scheme: (SignatureScheme, u8),
 }
 
 /// Negotiates with the ClientHello `client_hello` (one handshake message, header included, and
 /// nothing else), writes the ServerHello handshake message at the end of `out` and derives the
-/// handshake secrets: what TLS over records and QUIC (RFC 9001) do alike with a ClientHello.
-///
-/// `IS_QUIC` (RFC 9001 section 8): the ClientHello must carry the transport parameters of the
-/// client and offer the ALPN `h3`, the only protocol negotiated, and its `max_fragment_length` is
-/// ignored, QUIC packets are no records. Otherwise a `max_fragment_length` of the client lowers
-/// `max_fragment_length` and `max_fragment_length_send`, the limits of the records received and
-/// sent.
+/// handshake secrets. A `max_fragment_length` of the client lowers `max_fragment_length` and
+/// `max_fragment_length_send`, the limits of the records received and sent.
 #[inline]
-pub(crate) fn negotiate_client_hello<RNG, TCX, const IS_QUIC: bool>(
+pub(crate) fn negotiate_client_hello<RNG, TCX>(
   client_hello: &[u8],
   config: &TlsConfig<TCX>,
   key_schedule: &mut KeySchedule,
@@ -362,9 +351,7 @@ where
 {
   let mut dw = TlsDecodeWrapper::from_bytes(client_hello);
   // What the ALPN of the ClientHello is read against
-  if IS_QUIC {
-    dw.served_alpn_mut().protocol_name_list.push(ArrayVectorCopy::from_array(*b"h3"))?;
-  } else if let Some(elem) = &config.inner.alpn {
+  if let Some(elem) = &config.inner.alpn {
     *dw.served_alpn_mut() = elem.clone();
   }
   let handshake = Handshake::<&[u8]>::decode(&mut dw)?;
@@ -377,18 +364,6 @@ where
       TlsError::UnsupportedTlsVersion(ch.supported_versions().versions.last().copied()).into(),
     );
   }
-  let quic_transport_parameters = if IS_QUIC {
-    let Some(elem) = ch.quic_transport_parameters() else {
-      return Err(crate::Error::TlsErrorReply(
-        TlsError::MissingQuicTransportParameters,
-        AlertDescription::MissingExtension,
-      ));
-    };
-    let begin = elem.as_ptr().addr().wrapping_sub(client_hello.as_ptr().addr());
-    begin..begin.wrapping_add(elem.len())
-  } else {
-    0..0
-  };
   let cipher_suite =
     seek_cipher_suite(&ch.tls_config().cipher_suites, &config.inner.cipher_suites)?;
   key_schedule.set_cipher_suite(cipher_suite);
@@ -397,22 +372,10 @@ where
   transcript_hash.update(client_hello);
   let key_share =
     seek_key_share(&ch.generic().client_shares, &config.inner.supported_groups.named_group_list)?;
-  let alpn = if IS_QUIC {
-    let mut h3 = Alpn::default();
-    h3.protocol_name_list.push(ArrayVectorCopy::from_array(*b"h3"))?;
-    let Some(elem) = seek_alpn(&ch.tls_config().alpn, &Some(h3))? else {
-      return Err(crate::Error::TlsErrorReply(
-        TlsError::MissingAlpn,
-        AlertDescription::NoApplicationProtocol,
-      ));
-    };
-    Some(elem)
-  } else {
-    seek_alpn(&ch.tls_config().alpn, &config.inner.alpn)?
-  };
+  let alpn = seek_alpn(&ch.tls_config().alpn, &config.inner.alpn)?;
   *named_group = key_share.group();
 
-  let client_max_fragment_length = if IS_QUIC { None } else { ch.tls_config().max_fragment_length };
+  let client_max_fragment_length = ch.tls_config().max_fragment_length;
   if let Some(client_mfg) = client_max_fragment_length {
     let client_num = client_mfg.num();
     if let Some(server_mfl) = config.max_fragment_length()
@@ -453,21 +416,19 @@ where
   Ok(NegotiateOutput {
     alpn,
     max_fragment_length: client_max_fragment_length,
-    quic_transport_parameters,
     signature_scheme,
   })
 }
 
 /// Writes the EncryptedExtensions, Certificate, CertificateVerify and Finished messages of a
 /// server at the end of `out`, after [`negotiate_client_hello`], and returns where each of them
-/// begins. `quic_transport_parameters` are those of the server, in QUIC.
+/// begins.
 #[inline]
 pub(crate) fn write_server_flight<RNG, TCX>(
   config: &TlsConfig<TCX>,
   key_schedule: &mut KeySchedule,
   negotiation: NegotiateOutput,
   out: &mut VectorUsize<u8>,
-  quic_transport_parameters: Option<&[u8]>,
   rng: &mut RNG,
   transcript_hash: &mut TlsHash,
 ) -> crate::Result<ArrayVectorCopy<usize, 4>>
@@ -482,7 +443,7 @@ where
     EncryptedExtensions::new(
       negotiation.alpn,
       negotiation.max_fragment_length,
-      quic_transport_parameters,
+      None,
       None,
       None,
     ),

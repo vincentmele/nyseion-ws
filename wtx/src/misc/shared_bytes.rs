@@ -59,7 +59,7 @@ impl SharedBytes {
   /// The same bytes as a [`rimu_quic::SharedBytes`], for a QUIC stream that sends them by
   /// reference: the buffer moves, nothing is copied and no count changes when the range is the
   /// whole buffer. With `portable-atomic-util`, whose `Arc` is another type, the bytes are copied.
-  #[cfg(feature = "quic")]
+  #[cfg(feature = "http3-server-framework")]
   #[inline]
   pub(crate) fn into_quic(self) -> rimu_quic::SharedBytes {
     cfg_select! {

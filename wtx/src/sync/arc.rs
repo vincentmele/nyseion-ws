@@ -51,7 +51,7 @@ where
 
   /// The `Arc` of the standard library inside, for a crate that takes one: no copy, no atomic
   /// operation.
-  #[cfg(all(feature = "quic", not(feature = "portable-atomic-util")))]
+  #[cfg(all(feature = "http3-server-framework", not(feature = "portable-atomic-util")))]
   #[inline]
   pub(crate) fn into_std(this: Self) -> alloc::sync::Arc<T> {
     this.0
