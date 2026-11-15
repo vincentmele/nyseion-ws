@@ -3,7 +3,7 @@
 # Every source is a release tag, so that a rebuild gives the same clients (ruling T21-b). The
 # versions are recorded in the header of ../h3-interop.sh as well.
 #
-#   docker build -f Dockerfile.curl-ngtcp2 -t rimu-h3-interop-curl .
+#   docker build -f Dockerfile.curl-ngtcp2 -t nyseion-h3-interop-curl .
 #
 # Entry points: /opt/curl/bin/curl and /opt/ngtcp2/bin/client (the example client of ngtcp2).
 FROM ubuntu:24.04 AS builder

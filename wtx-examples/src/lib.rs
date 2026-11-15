@@ -37,19 +37,19 @@ pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 #[inline]
 pub async fn postgres_client(
   uri_str: &str,
-) -> rimu_ws::Result<
-  rimu_ws::database::client::postgres::PostgresClient<
-    rimu_ws::Error,
+) -> nyseion_ws::Result<
+  nyseion_ws::database::client::postgres::PostgresClient<
+    nyseion_ws::Error,
     tokio::net::TcpStream,
-    rimu_ws::tls::TrustedCtx,
+    nyseion_ws::tls::TrustedCtx,
   >,
 > {
-  use rimu_ws::{
+  use nyseion_ws::{
     database::client::postgres::{ClientBuffer, Config, PostgresClient},
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{TlsConfig, TlsConnectorBuilder},
   };
-  let uri = rimu_ws::net::Uri::new(uri_str);
+  let uri = nyseion_ws::net::Uri::new(uri_str);
   let mut tls_connector = TlsConnectorBuilder::tokio(uri)
     .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_std_random()?)
     .await?;

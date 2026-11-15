@@ -1,38 +1,38 @@
-# Breaking changes — rimu-json, rimu-gzip and rimu-http1 (13 Nov 2026)
+# Breaking changes — nyseion-json, nyseion-gzip and nyseion-http1 (13 Nov 2026)
 
-rimu-ws now uses three standalone crates instead of its in-tree copies: rimu-json for the JSON
-writer, rimu-gzip for the gzip encoder and rimu-http1 for HTTP/1.1 parsing. The sections below list
+nyseion-ws now uses three standalone crates instead of its in-tree copies: nyseion-json for the JSON
+writer, nyseion-gzip for the gzip encoder and nyseion-http1 for HTTP/1.1 parsing. The sections below list
 what changes for users of each.
 
-## JSON writer (rimu-json)
+## JSON writer (nyseion-json)
 
-- `rimu_ws::misc::JsonWriter` is a re-export of `rimu_json::JsonWriter`.
+- `nyseion_ws::misc::JsonWriter` is a re-export of `nyseion_json::JsonWriter`.
 - `raw` takes `&str` (was `&[u8]`), so the output stays UTF-8; `end_seq` takes an ASCII byte.
 - The methods return nothing (they returned `crate::Result<()>`): drop the `?` after each call.
-- `JsonWriter::new` takes any `B: rimu_json::JsonBuffer`; `Vec<u8>` and rimu-ws's `VectorUsize<u8>`
+- `JsonWriter::new` takes any `B: nyseion_json::JsonBuffer`; `Vec<u8>` and nyseion-ws's `VectorUsize<u8>`
   implement it.
 
-## gzip (rimu-gzip)
+## gzip (nyseion-gzip)
 
-- `rimu_ws::codec::{GzipEncoder, GzipLevel, GzipParams, GzipStrategy}` re-export
-  `rimu_gzip::{Encoder, Level, Params, Strategy}`.
+- `nyseion_ws::codec::{GzipEncoder, GzipLevel, GzipParams, GzipStrategy}` re-export
+  `nyseion_gzip::{Encoder, Level, Params, Strategy}`.
 - `GzipEncoder::encode(input, out) -> Result` is now `gzip(input, out)`, which returns nothing
   (`deflate` and `zlib` write the other two formats). `GzipEncoder::new()` is the default level,
   the parameters the in-tree encoder used, and writes the same sizes for the json-comp bodies.
 - `GzipParams` has `strategy` (`LazyOnce` is the old `lazy: true`, `Greedy` the old `false`) and
   `split_blocks` (the old encoder never split) in place of `lazy`.
-- Removed: `codec::gzip_check` and the `_fuzz-gzip` feature (rimu-gzip carries its own fuzz target).
+- Removed: `codec::gzip_check` and the `_fuzz-gzip` feature (nyseion-gzip carries its own fuzz target).
 
-## HTTP/1.1 (rimu-http1)
+## HTTP/1.1 (nyseion-http1)
 
-rimu-ws's HTTP/1.1 core now parses requests and decodes bodies with
-[rimu-http1](https://github.com/vincentmele/rimu-http1) instead of its own `http1/parser.rs` and
+nyseion-ws's HTTP/1.1 core now parses requests and decodes bodies with
+[nyseion-http1](https://github.com/vincentmele/nyseion-http1) instead of its own `http1/parser.rs` and
 `http1/body.rs`. Each connection keeps one resumable parser: a head that arrives over several reads
 is scanned once, not again on every read. What changes for users of the framework:
 
 ### API
 
-- `Http1Request::headers` is a `rimu_ws::http1::Headers<'b>` (rimu-http1's zero-copy view of the
+- `Http1Request::headers` is a `nyseion_ws::http1::Headers<'b>` (nyseion-http1's zero-copy view of the
   fields), no longer a `&[(&str, &str)]`. Use `headers.find(name)` (ignores case), `headers.get(i)`,
   `headers.len()` and `headers.iter()`, which yields `Header { name, value }`.
 - `Http1Req::headers()` returns that `Headers<'a>`; `Http1Req::header(name)` is unchanged.
@@ -50,6 +50,6 @@ is scanned once, not again on every read. What changes for users of the framewor
   (for example 400 instead of 431).
 - An absolute-form target still replaces `Host` (RFC 9112 §3.2.3), as before.
 - Limits are as before: a head of at most 16 KiB and 64 fields, with no shorter limit per line
-  (rimu-http1's own default of 8 KiB per line is raised to 16 KiB).
+  (nyseion-http1's own default of 8 KiB per line is raised to 16 KiB).
 - On 32-bit targets, a `Content-Length` larger than `usize` is answered 413, like any body over the
   limit (on 64-bit every valid length fits, and lengths over the limit get 413 as before).

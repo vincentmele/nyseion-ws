@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# The curl scenarios of h3-interop.sh, run inside the rimu-h3-interop-curl image (curl on ngtcp2,
+# The curl scenarios of h3-interop.sh, run inside the nyseion-h3-interop-curl image (curl on ngtcp2,
 # nghttp3 and quictls). Prints "ok NAME" or "FAIL NAME: why" per scenario; exits non-zero if any
 # failed. Every request has a 5 s limit (ruling T21-d).
 #

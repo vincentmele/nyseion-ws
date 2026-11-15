@@ -1,10 +1,10 @@
-# rimu-ws-soak
+# nyseion-ws-soak
 
 A soak and abuse harness for WebSocket servers. Thousands of simulated clients mix echo traffic
 that is checked byte for byte with hostile behaviour. A monitor watches the server from outside and
 fails the run if the server answers wrongly or stops being bounded.
 
-It speaks raw bytes through its own codec and does not depend on rimu-ws, so its clients can
+It speaks raw bytes through its own codec and does not depend on nyseion-ws, so its clients can
 misbehave freely, and a bug the two shared could not hide.
 
 ## Running it
@@ -18,7 +18,7 @@ server on CPUs 0-5,12-17 and runs the harness on 6-11,18-23:
 .scripts/soak.sh fd-direct    # descriptor flood, 256-slot direct descriptor table per thread
 ```
 
-Against another server: `rimu-ws-soak run --url ws://HOST:PORT/PATH --pid PID ...`. Without
+Against another server: `nyseion-ws-soak run --url ws://HOST:PORT/PATH --pid PID ...`. Without
 `--pid`, the server is not monitored.
 
 The server's limits must match the harness's `--handshake-timeout`, `--idle-timeout`,
@@ -89,7 +89,7 @@ The exit code is:
 ## Replaying a failure
 
 ```sh
-rimu-ws-soak replay SEED:SLOT:GEN --url ws://127.0.0.1:9080/
+nyseion-ws-soak replay SEED:SLOT:GEN --url ws://127.0.0.1:9080/
 ```
 
 This reruns that one scenario with the same bytes and prints its outcome and transcript. Give it

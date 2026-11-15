@@ -8,7 +8,7 @@
 //! `POST /echo` (8gbit), which answers with the request body verbatim.
 //!
 //! `/json` serializes the dataset on every request and compresses those bytes on every request by
-//! the request's `Accept-Encoding` lines: gzip (rimu-ws's one-shot `GzipEncoder`) if offered, else brotli (quality 2), else
+//! the request's `Accept-Encoding` lines: gzip (nyseion-ws's one-shot `GzipEncoder`) if offered, else brotli (quality 2), else
 //! none; with `Vary: Accept-Encoding`, and 406 if identity is refused and nothing else is
 //! acceptable. Nothing is cached.
 //!
@@ -16,7 +16,7 @@
 //! (default `/data/dataset.json`) is the dataset `/json` serves.
 
 use core::{cell::RefCell, num::NonZeroUsize, time::Duration};
-use rimu_ws::{
+use nyseion_ws::{
   codec::GzipEncoder,
   collections::{ArrayVectorU8, VectorUsize},
   executor::{UringExecutor, UringParams, UringRuntime},
@@ -47,7 +47,7 @@ thread_local! {
   static JSON_BUF: RefCell<VectorUsize<u8>> = const { RefCell::new(VectorUsize::new()) };
 }
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   // Loaded once; the numbers the validator draws later only choose a prefix of it.
   let _ = DATASET.set(load_dataset());
   let cert_dir = std::env::var("CERT_DIR").unwrap_or_else(|_| "/certs".into());
@@ -67,16 +67,16 @@ fn main() -> rimu_ws::Result<()> {
 }
 
 /// The plaintext server: `runtimes` runtimes (one per thread if `None`), each built by `rc`.
-fn serve_plain<RC>(addr: &str, runtimes: Option<NonZeroUsize>, rc: RC) -> rimu_ws::Result<()>
+fn serve_plain<RC>(addr: &str, runtimes: Option<NonZeroUsize>, rc: RC) -> nyseion_ws::Result<()>
 where
-  RC: Clone + Fn() -> rimu_ws::Result<UringRuntime> + Send + 'static,
+  RC: Clone + Fn() -> nyseion_ws::Result<UringRuntime> + Send + 'static,
 {
   let router = Http1Router::new()
     .route(Some(Method::Get), "/baseline11", endpoint_baseline11)
     .route(Some(Method::Post), "/baseline11", endpoint_baseline11)
     .route(Some(Method::Get), "/delay/{ms}", endpoint_delay)
     .route(Some(Method::Get), "/json/{count}", endpoint_json);
-  Http1ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _>::new(UringExecutor::default())?
+  Http1ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _>::new(UringExecutor::default())?
     .set_error_cb(error_cb)
     // `/delay/{ms}` takes at most MAX_DELAY_MS, which the framework must not cut
     .set_max_delay(Duration::from_millis(MAX_DELAY_MS))
@@ -94,15 +94,15 @@ fn serve_tls<RC>(
   cert: &[u8],
   key: &[u8],
   rc: RC,
-) -> rimu_ws::Result<()>
+) -> nyseion_ws::Result<()>
 where
-  RC: Clone + Fn() -> rimu_ws::Result<UringRuntime> + Send + 'static,
+  RC: Clone + Fn() -> nyseion_ws::Result<UringRuntime> + Send + 'static,
 {
   let tls_config = TlsConfig::from_keys_pem(cert, key)?;
   let router = Http1Router::new()
     .route(Some(Method::Get), "/json/{count}", endpoint_json_plain)
     .route(Some(Method::Post), "/echo", endpoint_echo);
-  Http1ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new_tls(
+  Http1ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new_tls(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     tls_config,
@@ -113,7 +113,7 @@ where
   .run_in_threads(addr, router)
 }
 
-fn error_cb(err: rimu_ws::Error) {
+fn error_cb(err: nyseion_ws::Error) {
   if std::env::var("ARENA_LOG_ERRORS").is_ok() {
     eprintln!("arena-h1: {err}");
   }
@@ -121,7 +121,7 @@ fn error_cb(err: rimu_ws::Error) {
 
 /// No spin: the latency profiles charge it to the score, and the rest measure level with it. The
 /// peer address is not used by any handler.
-fn runtime() -> rimu_ws::Result<UringRuntime> {
+fn runtime() -> nyseion_ws::Result<UringRuntime> {
   UringRuntime::with_params(
     UringParams::new()
       .set_peer_addrs(false)
@@ -143,7 +143,7 @@ fn baseline11_sum(a: i64, b: i64, body: Option<&[u8]>) -> i64 {
 }
 
 /// Parses `a` and `b` from the query on every request, never from a cache.
-fn endpoint_baseline11(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws::Result<()> {
+fn endpoint_baseline11(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> nyseion_ws::Result<()> {
   let (mut a, mut b) = (0i64, 0i64);
   for pair in req.query().split('&') {
     match pair.split_once('=') {
@@ -187,7 +187,7 @@ fn delay_response(param: Option<&str>) -> (StatusCode, u64) {
 
 /// Waits `ms` milliseconds (at most [`MAX_DELAY_MS`], else 400), then answers with `ms`. The delay is read from this request's path, so
 /// concurrent requests wait independently. The framework sends nothing before the delay elapses.
-fn endpoint_delay(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws::Result<()> {
+fn endpoint_delay(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> nyseion_ws::Result<()> {
   let (status, ms) = delay_response(req.param("ms"));
   if status == StatusCode::BadRequest {
     res.body_mut().extend_from_slice(b"delay over 5000 ms");
@@ -203,7 +203,7 @@ fn endpoint_delay(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws
 }
 
 /// `m` from the query, 1 if absent.
-fn query_m(query: &str) -> rimu_ws::Result<i64> {
+fn query_m(query: &str) -> nyseion_ws::Result<i64> {
   for pair in query.split('&') {
     if let Some(("m", value)) = pair.split_once('=') {
       return Ok(value.parse()?);
@@ -214,7 +214,7 @@ fn query_m(query: &str) -> rimu_ws::Result<i64> {
 
 /// Serializes the dataset for `{count}` and `m`, then compresses those bytes by the request's
 /// `Accept-Encoding` lines. Both happen on every request: the body is never kept.
-fn endpoint_json(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws::Result<()> {
+fn endpoint_json(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> nyseion_ws::Result<()> {
   let count: usize = req.param("count").unwrap_or("0").parse()?;
   let m = query_m(req.query())?;
   let dataset = DATASET.get().map_or(&[][..], |el| el.as_slice());
@@ -227,7 +227,7 @@ fn endpoint_json(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws:
     res.set_status(StatusCode::NotAcceptable);
     return Ok(());
   };
-  JSON_BUF.with(|cell| -> rimu_ws::Result<()> {
+  JSON_BUF.with(|cell| -> nyseion_ws::Result<()> {
     let mut json = cell.borrow_mut();
     json.clear();
     write_json(&mut json, dataset, count, m)?;
@@ -246,11 +246,11 @@ fn endpoint_json(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws:
 
 /// json-tls: the dataset for `{count}` and `m`, serialized on every request and sent as it is, with no
 /// `Accept-Encoding` handling.
-fn endpoint_json_plain(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws::Result<()> {
+fn endpoint_json_plain(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> nyseion_ws::Result<()> {
   let count: usize = req.param("count").unwrap_or("0").parse()?;
   let m = query_m(req.query())?;
   let dataset = DATASET.get().map_or(&[][..], |el| el.as_slice());
-  JSON_BUF.with(|cell| -> rimu_ws::Result<()> {
+  JSON_BUF.with(|cell| -> nyseion_ws::Result<()> {
     let mut json = cell.borrow_mut();
     json.clear();
     write_json(&mut json, dataset, count, m)?;
@@ -269,7 +269,7 @@ fn echo_body(body: &[u8]) -> &[u8] {
 
 /// `POST /echo`: answers with the body the framework decoded from this request (Content-Length or
 /// chunked), never from a length header or a kept buffer.
-fn endpoint_echo(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> rimu_ws::Result<()> {
+fn endpoint_echo(_: &mut (), req: &Http1Req<'_>, res: &mut Http1Res) -> nyseion_ws::Result<()> {
   res.body_mut().extend_from_slice(echo_body(req.body()));
   res.set_content_type("application/octet-stream");
   res.set_status(StatusCode::Ok);
@@ -284,7 +284,7 @@ fn write_json(
   dataset: &[DatasetItem],
   count: usize,
   m: i64,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   let clamped = count.min(dataset.len());
   let mut w = JsonWriter::new(buf);
   // Every item and tag is written with a trailing comma; `end_seq` turns the last one into the
@@ -827,7 +827,7 @@ mod tests {
     }
   }
 
-  /// The json-comp body is gzip from the rimu-ws encoder: `/json/50?m=6`'s bytes inflate to the
+  /// The json-comp body is gzip from the nyseion-ws encoder: `/json/50?m=6`'s bytes inflate to the
   /// serialized dataset and have exactly the length a new `GzipEncoder` writes for them.
   #[test]
   fn json_gzip_uses_the_new_encoder() {
@@ -838,7 +838,7 @@ mod tests {
     encode(Encoding::Gzip, json.as_slice(), &mut out).unwrap();
     assert_eq!(ungzip(&out), json.as_slice());
     let mut fresh = Vec::new();
-    rimu_ws::codec::GzipEncoder::new().gzip(json.as_slice(), &mut fresh);
+    nyseion_ws::codec::GzipEncoder::new().gzip(json.as_slice(), &mut fresh);
     assert_eq!(out.len(), fresh.len());
   }
 
@@ -967,7 +967,7 @@ mod tests {
   }
 
   /// Thread-local destructors that ran their encodes, see [`EncodeOnDrop`].
-  static TEARDOWN_ENCODES: rimu_ws::sync::AtomicUsize = rimu_ws::sync::AtomicUsize::new(0);
+  static TEARDOWN_ENCODES: nyseion_ws::sync::AtomicUsize = nyseion_ws::sync::AtomicUsize::new(0);
 
   /// Compresses with brotli and gzip in a thread-local destructor, as code torn down with its
   /// thread may, and checks the output.

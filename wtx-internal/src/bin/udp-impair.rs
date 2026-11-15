@@ -31,7 +31,7 @@
 #![allow(clippy::disallowed_methods, reason = "a test tool")]
 #![allow(clippy::disallowed_types, reason = "a test tool")]
 
-use rimu_ws::sync::Arc;
+use nyseion_ws::sync::Arc;
 use std::{
   cmp::Reverse,
   collections::{BTreeMap, BinaryHeap},

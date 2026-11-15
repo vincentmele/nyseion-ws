@@ -12,7 +12,7 @@ Measured with `.scripts/h2-bench.sh` on colossus (Ryzen 9 5900X, 12 cores / 24 t
 
 ## Baseline (old driver), 6 Nov 2026
 
-- rimu is `arena-h2` on the upstream server framework, on `UringExecutor`, with
+- nyseion is `arena-h2` on the upstream server framework, on `UringExecutor`, with
   `ARENA_PARAMS=permissive` (upstream's wtx-http2 settings).
 - Under the library defaults, the old server fails h2load's 100 concurrent streams: GOAWAY with
   ExceedAmountOfOpenedStreams, 18% of requests errored. Task 13 fixes the defaults.
@@ -24,18 +24,18 @@ server     composite           baseline-h2             static-h2          baseli
 plod            4000        4913k (1000)         370k (1000)        5108k (1000)        1454k (1000)
 viltrum         2835        4459k ( 908)         109k ( 295)        4699k ( 920)        1037k ( 713)
 aegon           2172        2879k ( 586)         183k ( 493)        3024k ( 592)         728k ( 501)
-rimu            1096        1713k ( 349)           0k (   0)        1817k ( 356)         569k ( 391)
+nyseion            1096        1713k ( 349)           0k (   0)        1817k ( 356)         569k ( 391)
 ```
 
 | server | profile | conns | best rps | h2load CPU % | server user cycles/req |
 |---|---|---|---|---|---|
 | aegon | baseline-h2 | 256 | 2968810 | 51.6 | None |
 | plod | baseline-h2 | 256 | 5080138 | 97.8 | None |
-| rimu | baseline-h2 | 256 | 1738405 | 58.9 | 17052 |
+| nyseion | baseline-h2 | 256 | 1738405 | 58.9 | 17052 |
 | viltrum | baseline-h2 | 256 | 4552198 | 73.8 | None |
 | aegon | baseline-h2 | 1024 | 2789409 | 50.9 | None |
 | plod | baseline-h2 | 1024 | 4745846 | 100.0 | None |
-| rimu | baseline-h2 | 1024 | 1687169 | 58.2 | 17343 |
+| nyseion | baseline-h2 | 1024 | 1687169 | 58.2 | 17343 |
 | viltrum | baseline-h2 | 1024 | 4365878 | 81.7 | None |
 | aegon | static-h2 | 256 | 203537 | 77.8 | None |
 | plod | static-h2 | 256 | 379685 | 68.6 | None |
@@ -45,23 +45,23 @@ rimu            1096        1713k ( 349)           0k (   0)        1817k ( 356)
 | viltrum | static-h2 | 1024 | 0 | 49.9 | None |
 | aegon | baseline-h2c | 256 | 3113988 | 44.8 | None |
 | plod | baseline-h2c | 256 | 5425149 | 95.5 | None |
-| rimu | baseline-h2c | 256 | 1905244 | 33.5 | 16189 |
+| nyseion | baseline-h2c | 256 | 1905244 | 33.5 | 16189 |
 | viltrum | baseline-h2c | 256 | 4796178 | 72.7 | None |
 | aegon | baseline-h2c | 1024 | 3004705 | 48.7 | None |
 | plod | baseline-h2c | 1024 | 5057811 | 96.4 | None |
-| rimu | baseline-h2c | 1024 | 1821953 | 38.0 | 16663 |
+| nyseion | baseline-h2c | 1024 | 1821953 | 38.0 | 16663 |
 | viltrum | baseline-h2c | 1024 | 4747258 | 78.0 | None |
 | aegon | baseline-h2c | 4096 | 2953255 | 48.6 | None |
 | plod | baseline-h2c | 4096 | 4841965 | 100.0 | None |
-| rimu | baseline-h2c | 4096 | 1724611 | 36.9 | 17836 |
+| nyseion | baseline-h2c | 4096 | 1724611 | 36.9 | 17836 |
 | viltrum | baseline-h2c | 4096 | 4554358 | 81.9 | None |
 | aegon | json-h2c | 1024 | 748830 | 38.4 | None |
 | plod | json-h2c | 1024 | 1490832 | 53.9 | None |
-| rimu | json-h2c | 1024 | 581838 | 28.1 | 62023 |
+| nyseion | json-h2c | 1024 | 581838 | 28.1 | 62023 |
 | viltrum | json-h2c | 1024 | 1053698 | 35.7 | None |
 | aegon | json-h2c | 4096 | 708156 | 40.3 | None |
 | plod | json-h2c | 4096 | 1417280 | 61.4 | None |
-| rimu | json-h2c | 4096 | 556648 | 28.5 | 64577 |
+| nyseion | json-h2c | 4096 | 556648 | 28.5 | 64577 |
 | viltrum | json-h2c | 4096 | 1019515 | 42.1 | None |
 
 Notes:
@@ -71,7 +71,7 @@ Notes:
 - **viltrum static-h2 at 1024 connections:** viltrum stalls streams, h2load never finishes
   (59 min in one run), and every run fails. The script now stops h2load after 30 s and scores
   the run 0.
-- **Old rimu cost:** about 17k user cycles per request on baseline and about 62k on json-h2c.
+- **Old nyseion cost:** about 17k user cycles per request on baseline and about 62k on json-h2c.
 
 ## Conformance baseline (old driver), 6 Nov 2026
 
@@ -315,7 +315,7 @@ A/B, native, interleaved:
 
 plod measured the same way, in the same windows: 1,454k, 1,444k–1,488k.
 
-json-h2c 4096 with all four, interleaved with plod: rimu 1,443k, 1,460k; plod 1,405k, 1,404k.
+json-h2c 4096 with all four, interleaved with plod: nyseion 1,443k, 1,460k; plod 1,405k, 1,404k.
 
 Early submit, other profiles: json-h2c 4096 1,276k → 1,309k; baseline-h2c 256 5,969k → 5,952k,
 baseline-h2 256 5,528k → 5,513k and baseline-h2c 4096 4,197k → 4,251k, all h2load-bound at 100%.
@@ -333,8 +333,8 @@ counters (`segcmp/run-static.sh`: cycles on the server and load CPUs, TCP segmen
 | static-h2 256 | rps | server user/kern cycles per req | h2load user/kern | TCP segs out per req |
 |---|---|---|---|---|
 | plod | 379k–380k | 53k / 57k | 44k–49k / 37k | 0.36 |
-| rimu, default (kTLS on ~40 of 256 conns) | 276k–283k | 53k–75k / 89k–125k | 51k–54k / 61k–74k | 0.68–1.80 |
-| rimu, kTLS off | 292k–296k | 80k / 77k | 44k–47k / 58k–60k | 0.36 |
+| nyseion, default (kTLS on ~40 of 256 conns) | 276k–283k | 53k–75k / 89k–125k | 51k–54k / 61k–74k | 0.68–1.80 |
+| nyseion, kTLS off | 292k–296k | 80k / 77k | 44k–47k / 58k–60k | 0.36 |
 
 - **Kernel TLS on 16 KiB records loses.** The kernel pushes each record as its own TCP segment
   (one segment per 16 KiB instead of up to 64 KiB) and allocates pages twice (plaintext, then
@@ -358,7 +358,7 @@ counters (`segcmp/run-static.sh`: cycles on the server and load CPUs, TCP segmen
 
 Measured per server process (`h2bench/measure.sh`: the server's own cycles and page allocations
 per request), because another job loaded the box (four processes at 100%, on the server CPUs too):
-throughput below is low in absolute terms, but rimu and plod ran alternately under the same load.
+throughput below is low in absolute terms, but nyseion and plod ran alternately under the same load.
 
 | change | static-h2 256 rps | cycles/req |
 |---|---|---|
@@ -376,7 +376,7 @@ Send threshold sweep (static-h2 256): 256 KiB 326k, 128 KiB 336k, 64 KiB 354k, 3
 
 Head to head with plod, best of 3 as HttpArena runs it, alternating, same load:
 
-| profile | conns | rimu | plod | |
+| profile | conns | nyseion | plod | |
 |---|---|---|---|---|
 | baseline-h2 | 256 | 4891k | 4158k | +17.6% |
 | baseline-h2 | 1024 | 4280k | 3927k | +9.0% |
@@ -401,18 +401,18 @@ the commit before, under the same load:
 | static-h2 | 256, 1024 | | unchanged | | | | |
 | baseline-h2, baseline-h2c | 1024, 4096 | | unchanged | | | | |
 
-json-h2c against plod after it, best of 3, alternating: 4096 rimu 1533k / 1513k, plod 1321k /
-1352k (+14%); 1024 rimu 1950k / 1969k, plod 1375k / 1382k (+42%). h2load ran at ~100% CPU against
-rimu and ~80% against plod: the load generator may now bound rimu's numbers.
+json-h2c against plod after it, best of 3, alternating: 4096 nyseion 1533k / 1513k, plod 1321k /
+1352k (+14%); 1024 nyseion 1950k / 1969k, plod 1375k / 1382k (+42%). h2load ran at ~100% CPU against
+nyseion and ~80% against plod: the load generator may now bound nyseion's numbers.
 
 ### baseline-h2c 4096: what the load generator pays
 
 plod led baseline-h2c 4096 by ~9% (4.52M against 4.14M) with h2load at ~100% CPU against both, so
 the race was decided by what each server costs h2load. Measured on the load CPUs (nstat, perf):
 syscalls and TCP segments per request were equal (~30 requests a segment), but h2load spent
-~17% more cycles per request against rimu, spread evenly over its own code (libnghttp2 +25%,
+~17% more cycles per request against nyseion, spread evenly over its own code (libnghttp2 +25%,
 jemalloc +22%), the signature of memory latency rather than extra protocol work. The server and
-h2load sit on different CCDs (separate L3s) but share DRAM: rimu took ~100M DRAM fills in 2 s
+h2load sit on different CCDs (separate L3s) but share DRAM: nyseion took ~100M DRAM fills in 2 s
 against plod's ~20M (RSS 370 MiB against 113 MiB), and h2load's own DRAM fills doubled with it.
 
 - `content-length` indexed when it repeats (11784605): the steady-state header block was 8 bytes
@@ -436,7 +436,7 @@ A budget of 1 matched 4 on baseline-h2c 4096 (4.80M, 4.53k cycles); 16 was lower
 Head to head with plod at e1f4440b, best of 3, alternating, same load (box loaded by other work,
 load average ~15):
 
-| profile | conns | rimu | plod | |
+| profile | conns | nyseion | plod | |
 |---|---|---|---|---|
 | baseline-h2 | 256 | 5313k | 4641k | +14.5% |
 | baseline-h2 | 1024 | 4775k | 4324k | +10.4% |
@@ -500,7 +500,7 @@ that speak first) or measured level.
 | full suite ×3 | `$FEAT` + `web-socket`, `web-socket-server-framework`, `postgres`, `json-writer`: lib 404, doc tests 160, integration binaries, all pass three times; the 17 postgres integration tests are skipped (they need a Postgres server and `wtx_database_uri_postgres`; this branch does not touch the database client) |
 | ASan | `--lib http2`, 105 tests pass, no memory errors. LeakSanitizer reports 1.8 KB in 40 allocations, all from tasks still alive at exit: framework test servers that never stop (routers, their connections' buffers and HPACK strings), the `connections` tests' proxy threads, and the client pool's live connection to google.com/github.com. Every group whose runtime ends (`http2::conn`, `http2::hpack`, the connection driver, static files) is leak-free |
 | Miri | `--features http2 --lib http2::conn` with `-Zmiri-disable-isolation` (the core reads the wall clock): 53 pass. Excluded: `differential_fixed_seeds`, which runs for hours under Miri; it runs natively and under ASan |
-| interop | curl, nghttp and the Go client over h2c and h2/TLS against `arena-h2` and the HttpArena entry: all pass. rimu-ws's client pool against nginx (h2c): 20 sequential and 64 concurrent requests, all correct |
+| interop | curl, nghttp and the Go client over h2c and h2/TLS against `arena-h2` and the HttpArena entry: all pass. nyseion-ws's client pool against nginx (h2c): 20 sequential and 64 concurrent requests, all correct |
 | Autobahn | drain, uring and uring-direct: 512 OK / 2 non-strict / 3 informational each |
 | WebSocket A/B against cc847160 | p=1 559k vs 559k fr/s, p=16 8.52M vs 8.56M, limited 346–380k vs 343–370k; user cycles per frame 684 vs 666 and 107 vs 105 |
 
@@ -522,10 +522,10 @@ suite); it now fails after 60 s with every connection's receive and send state (
 ## Local composite (7 Nov, Task 18; HttpArena entry at 2bbec273)
 
 All four servers on every scored profile in one session, interleaved per profile (plod, viltrum,
-aegon, rimu), best of 3 runs of 5 s as HttpArena runs them; box loaded by other work (load average
-3 at the start, 13 at the end). rimu is the HttpArena entry binary (standard mode).
+aegon, nyseion), best of 3 runs of 5 s as HttpArena runs them; box loaded by other work (load average
+3 at the start, 13 at the end). nyseion is the HttpArena entry binary (standard mode).
 
-| profile | conns | rimu | plod | viltrum | aegon | rimu vs best rival | load CPU % (rimu/plod/viltrum/aegon) | rimu user cyc/req |
+| profile | conns | nyseion | plod | viltrum | aegon | nyseion vs best rival | load CPU % (nyseion/plod/viltrum/aegon) | nyseion user cyc/req |
 |---|---|---|---|---|---|---|---|---|
 | baseline-h2 | 256 | 5856k | 5254k | 4636k | 2936k | +11.5% | 100/98/76/48 | 2835 |
 | baseline-h2 | 1024 | 4955k | 4444k | 4364k | 2770k | +11.5% | 100/98/83/50 | 3045 |
@@ -544,10 +544,10 @@ viltrum's static-h2 1024 runs all failed (0 req/s). No profile is generator-capp
 
 ```
 server     composite           baseline-h2             static-h2          baseline-h2c              json-h2c
-rimu            4000        5406k (1000)         468k (1000)        5571k (1000)        1828k (1000)
+nyseion            4000        5406k (1000)         468k (1000)        5571k (1000)        1828k (1000)
 plod            3393        4849k ( 897)         366k ( 781)        5179k ( 930)        1436k ( 785)
 viltrum         2469        4500k ( 832)         104k ( 221)        4722k ( 848)        1038k ( 568)
 aegon           1854        2853k ( 528)         182k ( 388)        3031k ( 544)         720k ( 394)
 ```
 
-rimu leads every profile, so Steps 2-3 (finding a losing profile's cost) had nothing to act on.
+nyseion leads every profile, so Steps 2-3 (finding a losing profile's cost) had nothing to act on.

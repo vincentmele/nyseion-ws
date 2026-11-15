@@ -53,7 +53,7 @@ pub use mem::*;
 pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
 #[cfg(feature = "json-writer")]
-pub use rimu_json::JsonWriter;
+pub use nyseion_json::JsonWriter;
 pub use sensitive_bytes::SensitiveBytes;
 pub use shared_bytes::SharedBytes;
 pub use simd_slice::{simd_bytes, simd_bytes_mut};

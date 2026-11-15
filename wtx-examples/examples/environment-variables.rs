@@ -1,9 +1,9 @@
 //! `EnvVars` allows the interactive reading of environment variables.
 
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
 use std::sync::OnceLock;
-use rimu_ws::{
+use nyseion_ws::{
   calendar::{Datetime, Utc},
   collections::VectorUsize,
   misc::EnvVars,
@@ -12,7 +12,7 @@ use rimu_ws::{
 
 static VARS: OnceLock<Vars> = OnceLock::new();
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let http_secret = "Top secret information retrieved from a remote password vault";
   let others = [("HTTP_SECRET".into(), http_secret.into())];
   let _rslt = VARS.set(EnvVars::from_available(others)?.finish());
@@ -23,7 +23,7 @@ fn main() -> rimu_ws::Result<()> {
   Ok(())
 }
 
-#[derive(Debug, rimu_ws::FromVars)]
+#[derive(Debug, nyseion_ws::FromVars)]
 struct Vars {
   http_secret: SecretStr,
   #[from_vars(map_now)]
@@ -33,6 +33,6 @@ struct Vars {
   rust_log: Option<String>,
 }
 
-fn map_now(var: String) -> rimu_ws::Result<Datetime<Utc>> {
+fn map_now(var: String) -> nyseion_ws::Result<Datetime<Utc>> {
   Datetime::from_iso8601(var.as_bytes())
 }

@@ -1951,25 +1951,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "rimu-gzip"
+name = "nyseion-gzip"
 version = "0.1.0"
 dependencies = [
  "crc32fast",
 ]
 
 [[package]]
-name = "rimu-http1"
+name = "nyseion-http1"
 version = "0.1.0"
 
 [[package]]
-name = "rimu-json"
+name = "nyseion-json"
 version = "0.1.0"
 dependencies = [
  "zmij",
 ]
 
 [[package]]
-name = "rimu-ws"
+name = "nyseion-ws"
 version = "0.52.1"
 dependencies = [
  "aead 0.6.1",
@@ -2009,11 +2009,11 @@ dependencies = [
  "quick-protobuf",
  "quick-xml",
  "rand_core 0.10.1",
- "rimu-gzip",
- "rimu-http1",
- "rimu-json",
- "rimu-ws",
- "rimu-ws-macros",
+ "nyseion-gzip",
+ "nyseion-http1",
+ "nyseion-json",
+ "nyseion-ws",
+ "nyseion-ws-macros",
  "ring",
  "rsa",
  "rust_decimal",
@@ -2038,32 +2038,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "rimu-ws-examples"
+name = "nyseion-ws-examples"
 version = "0.0.0"
 dependencies = [
  "pb-rs",
  "quick-protobuf",
- "rimu-ws",
+ "nyseion-ws",
  "serde",
  "serde_json",
  "tokio",
 ]
 
 [[package]]
-name = "rimu-ws-fuzz"
+name = "nyseion-ws-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
- "rimu-ws",
+ "nyseion-ws",
 ]
 
 [[package]]
-name = "rimu-ws-internal"
+name = "nyseion-ws-internal"
 version = "0.0.0"
 dependencies = [
  "brotli",
  "libc",
- "rimu-ws",
+ "nyseion-ws",
  "serde",
  "serde_json",
  "tokio",
@@ -2071,7 +2071,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rimu-ws-macros"
+name = "nyseion-ws-macros"
 version = "0.12.1"
 dependencies = [
  "proc-macro2",
@@ -2080,7 +2080,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rimu-ws-soak"
+name = "nyseion-ws-soak"
 version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
@@ -2107,11 +2107,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rimu-ws-ui"
+name = "nyseion-ws-ui"
 version = "0.8.3"
 dependencies = [
  "clap",
- "rimu-ws",
+ "nyseion-ws",
  "tokio",
 ]
 

@@ -7,9 +7,9 @@
 //! Everything that is not inside `main` should be constructed only once in your program.
 
 extern crate serde;
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
-use rimu_ws::{
+use nyseion_ws::{
   client_api_framework::{
     Api,
     misc::{Pair, RequestCounter, RequestLimit},
@@ -25,16 +25,16 @@ use rimu_ws::{
 use core::time::Duration;
 use std::net::TcpStream;
 
-rimu_ws::create_packages_aux_wrapper!();
+nyseion_ws::create_packages_aux_wrapper!();
 
 #[derive(Debug)]
-#[rimu_ws::api(error(rimu_ws::Error), pkgs_aux(PkgsAux), transport(http, ws))]
+#[nyseion_ws::api(error(nyseion_ws::Error), pkgs_aux(PkgsAux), transport(http, ws))]
 pub struct GenericThrottlingApi {
   pub rc: RequestCounter,
 }
 
 impl Api for GenericThrottlingApi {
-  type Error = rimu_ws::Error;
+  type Error = nyseion_ws::Error;
   type Id = GenericThrottlingApiId;
 
   async fn before_sending(&mut self) -> Result<(), Self::Error> {
@@ -43,7 +43,7 @@ impl Api for GenericThrottlingApi {
   }
 }
 
-#[rimu_ws::pkg(
+#[nyseion_ws::pkg(
   data_format(json_rpc("genericHttpRequest")),
   id(crate::GenericThrottlingApiId),
   transport(http)
@@ -60,7 +60,7 @@ mod generic_http_request {
   pub type GenericHttpRequestRes = (u8, u16, u32);
 }
 
-#[rimu_ws::pkg(
+#[nyseion_ws::pkg(
   data_format(json_rpc("genericWebSocketSubscription")),
   id(crate::GenericThrottlingApiId),
   transport(ws)
@@ -97,7 +97,7 @@ async fn http_pair() -> Pair<
   )
 }
 
-async fn web_socket_pair() -> rimu_ws::Result<
+async fn web_socket_pair() -> nyseion_ws::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
     WebSocket<(), TcpStream, WebSocketBuffer, true>,
@@ -119,8 +119,8 @@ async fn web_socket_pair() -> rimu_ws::Result<
   ))
 }
 
-#[rimu_ws::main]
-async fn main() -> rimu_ws::Result<()> {
+#[nyseion_ws::main]
+async fn main() -> nyseion_ws::Result<()> {
   let mut hp = http_pair().await;
   let _http_response_tuple = hp
     .trans

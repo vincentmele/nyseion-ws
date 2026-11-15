@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # The scenarios of h3-interop.sh for the example client of ngtcp2 (qtlsclient, installed as
-# `client`), run inside the rimu-h3-interop-curl image. Prints "ok NAME" or "FAIL NAME: why" per
+# `client`), run inside the nyseion-h3-interop-curl image. Prints "ok NAME" or "FAIL NAME: why" per
 # scenario; exits non-zero if any failed.
 #
 #   ADDR=127.0.0.1:8443 STATIC=/data/static [SEQ=1000] [PAR=64] client-ngtcp2.sh

@@ -1,7 +1,7 @@
-//! The json-comp effort sweep of the rimu-ws gzip encoder (plan Task 6), an ignored test:
+//! The json-comp effort sweep of the nyseion-ws gzip encoder (plan Task 6), an ignored test:
 //!
 //! ```sh
-//! taskset -c 0 cargo test -p rimu-ws-internal --features arena-h1 --release --bin arena-h1 -- --ignored sweep --nocapture
+//! taskset -c 0 cargo test -p nyseion-ws-internal --features arena-h1 --release --bin arena-h1 -- --ignored sweep --nocapture
 //! ```
 //!
 //! The profile's three bodies (`/json/25?m=4`, `/json/40?m=8`, `/json/50?m=6`) are built with the
@@ -10,10 +10,10 @@
 //! level 6, which the json-comp profile of 11 Nov measured at 62.0 µs a request (67.9 % of 91.4 µs
 //! of server thread time at 131.3 K req/s), beside the 29.3 µs of everything else a request costs
 //! (`docs/benchmarks/2026-11-11-json-comp-baseline/README.md`). The score is json-comp's:
-//! `1 / ((T_OTHER + t) × bpr²)`, `bpr` the mean of rimu's header bytes plus the body.
+//! `1 / ((T_OTHER + t) × bpr²)`, `bpr` the mean of nyseion's header bytes plus the body.
 
 use crate::{DatasetItem, GZIP_WINDOW_BITS, write_json};
-use rimu_ws::{
+use nyseion_ws::{
   codec::{GzipEncoder, GzipParams, GzipStrategy},
   collections::VectorUsize,
 };
@@ -22,7 +22,7 @@ use std::time::Instant;
 const ENCODES: usize = 2_000;
 
 /// One gzip member of `input` from the reused zlib-rs stream `deflate` (what arena-h1 sent before
-/// the rimu-ws encoder), into the empty `out`.
+/// the nyseion-ws encoder), into the empty `out`.
 fn zlib_gzip(deflate: &mut zlib_rs::Deflate, input: &[u8], out: &mut Vec<u8>) {
   deflate.reset();
   out.clear();
@@ -32,7 +32,7 @@ fn zlib_gzip(deflate: &mut zlib_rs::Deflate, input: &[u8], out: &mut Vec<u8>) {
   out.truncate(usize::try_from(deflate.total_out()).unwrap());
 }
 const BODIES: [(usize, i64); 3] = [(25, 4), (40, 8), (50, 6)];
-/// rimu's header bytes on the three bodies (status line through the blank line)
+/// nyseion's header bytes on the three bodies (status line through the blank line)
 const HEADERS: [usize; 3] = [119, 120, 120];
 const T_OTHER_US: f64 = 29.3;
 const ZLIB6_LOADED_US: f64 = 62.0;
@@ -190,7 +190,7 @@ fn profile_loop() {
   println!("{n} encodes, {:.2} us each", begin.elapsed().as_secs_f64() * 1e6 / n as f64);
 }
 
-/// The parameters of the in-tree encoder this sweep was written for, in rimu-gzip's terms: one
+/// The parameters of the in-tree encoder this sweep was written for, in nyseion-gzip's terms: one
 /// step of lazy evaluation or greedy parsing, no length-3 matches, no skipping and no block splitting.
 fn old_params(search_depth: u16, nice_match: u16, good_match: u16, max_insert: u16, lazy: bool) -> GzipParams {
   let strategy = if lazy { GzipStrategy::LazyOnce } else { GzipStrategy::Greedy };

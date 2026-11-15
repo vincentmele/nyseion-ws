@@ -1,7 +1,7 @@
 //! Allocation tests of the arena-h2 HTTP/3 server, end to end: the program's own server
 //! ([`spawn_h3_with`]: its router, endpoints, `ConnAux`, switches and `StaticFiles`) on a counted
 //! worker thread, and the loopback HTTP/3 client of the library
-//! ([`rimu_ws::http3::loopback_client`]) on the test's threads, over UDP on loopback. They are
+//! ([`nyseion_ws::http3::loopback_client`]) on the test's threads, over UDP on loopback. They are
 //! correctness tests, not benchmarks: the load is a few thousand requests.
 //!
 //! After a warm-up that reaches the measured steady state (the connections open, the streams in
@@ -35,7 +35,7 @@ use core::{
   sync::atomic::{AtomicI64, Ordering},
   time::Duration,
 };
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   executor::UdpParams,
   http::{ShutdownSignal, http3_server_framework::Http3Stats},
@@ -266,14 +266,14 @@ impl Owner {
   fn of_path(path: &str) -> Option<Self> {
     const OWNERS: [(&str, Owner); 11] = [
       ("ring::", Owner::Crypto),
-      ("rimu_ws::quic::", Owner::Core),
-      ("rimu_ws::http3::", Owner::Core),
-      ("rimu_ws::http::http3_server_framework::endpoint_task::", Owner::Driver),
-      ("rimu_ws::http::http3_server_framework::", Owner::Framework),
-      ("rimu_ws::http::static_files::", Owner::Framework),
-      ("rimu_ws::http::http2_server_framework::", Owner::Framework),
-      ("rimu_ws::executor::", Owner::Executor),
-      ("rimu_ws::tls::", Owner::Tls),
+      ("nyseion_ws::quic::", Owner::Core),
+      ("nyseion_ws::http3::", Owner::Core),
+      ("nyseion_ws::http::http3_server_framework::endpoint_task::", Owner::Driver),
+      ("nyseion_ws::http::http3_server_framework::", Owner::Framework),
+      ("nyseion_ws::http::static_files::", Owner::Framework),
+      ("nyseion_ws::http::http2_server_framework::", Owner::Framework),
+      ("nyseion_ws::executor::", Owner::Executor),
+      ("nyseion_ws::tls::", Owner::Tls),
       ("arena_h2::endpoint_", Owner::App),
       ("arena_h2::write_json", Owner::App),
     ];
@@ -292,7 +292,7 @@ impl Owner {
       if idx.is_empty() || !idx.bytes().all(|el| el.is_ascii_digit()) {
         continue;
       }
-      // `<rimu_ws::tls::Foo<..> as ..>::read` is charged as `rimu_ws::tls::Foo`
+      // `<nyseion_ws::tls::Foo<..> as ..>::read` is charged as `nyseion_ws::tls::Foo`
       let name = name.trim_start_matches('<');
       let path = name.split(['<', ' ']).next().unwrap_or(name);
       let path = path.replace('>', "");
@@ -329,7 +329,7 @@ fn env_or(name: &str, default: &str) -> String {
 /// The arena-h2 HTTP/3 server on loopback, one worker whose thread is counted in `counts`.
 struct Served {
   addr: SocketAddr,
-  handle: Option<std::thread::JoinHandle<rimu_ws::Result<()>>>,
+  handle: Option<std::thread::JoinHandle<nyseion_ws::Result<()>>>,
   signal: ShutdownSignal,
   stats: Http3Stats,
   udp: UdpParams,
@@ -401,7 +401,7 @@ impl Served {
   fn wait(
     &self,
     what: &str,
-    f: impl Fn(&rimu_ws::http::http3_server_framework::Http3WorkerStats) -> bool,
+    f: impl Fn(&nyseion_ws::http::http3_server_framework::Http3WorkerStats) -> bool,
   ) {
     let begin = Instant::now();
     loop {
@@ -765,9 +765,9 @@ fn counting_is_live_on_server_threads() {
   );
   // The classification of frames
   assert_eq!(Owner::of_path("ring::rsa::signing::sign"), Some(Owner::Crypto));
-  assert_eq!(Owner::of_path("rimu_ws::quic::conn::flush"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("nyseion_ws::quic::conn::flush"), Some(Owner::Core));
   assert_eq!(
-    Owner::of_path("rimu_ws::http::http3_server_framework::endpoint_task::turn"),
+    Owner::of_path("nyseion_ws::http::http3_server_framework::endpoint_task::turn"),
     Some(Owner::Driver)
   );
   assert_eq!(Owner::of_path("arena_h2::alloc_tests_h3::drive"), None);
@@ -909,7 +909,7 @@ fn memory_report() {
 /// connections with 64 streams each, once honest and once with the clients withholding their ACKs
 /// for `HOLD_MS` (the connections reach their congestion window and PTO probes pile on).
 fn chunk_pool_profile(profile: &str, request: &mut dyn FnMut(usize) -> H3Get) {
-  use rimu_ws::quic::diag;
+  use nyseion_ws::quic::diag;
   let counts = Counts::leak();
   let served = Served::new(counts);
   let mut clients: Vec<_> = (0..CONNS).map(|_| served.client()).collect();

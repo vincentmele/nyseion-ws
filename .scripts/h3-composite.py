@@ -6,23 +6,23 @@
 
 Each line is one h3-bench.sh output. Per server and profile the number is the median rps over the
 server's lines (the median of several server starts), or with --last the rps of its last line. Points
-are 1000 x rps / the best rps of the profile among plod, fib, aegon and rimu, summed over baseline-h3
+are 1000 x rps / the best rps of the profile among plod, fib, aegon and nyseion, summed over baseline-h3
 and static-h3. Servers outside that field (cnetmod, zix) are scored against the same best, so they can
 exceed 1000 on a profile; they do not move the reference. Ranks are per profile, over every server
 in the file. A number marked ! comes from lines with errors. Lines without an rps (a failed start)
 are skipped.
 
-A line of rimu that carries "headers" (the A/B of the response headers, ARENA_H3_HEADERS; h3-bench.sh
-writes it on every rimu line since task 16, `min` when unset) counts as the server "rimu-min" or
-"rimu-full"; in the composite those are rimu variants (the field has the best of them). A rimu line
+A line of nyseion that carries "headers" (the A/B of the response headers, ARENA_H3_HEADERS; h3-bench.sh
+writes it on every nyseion line since task 16, `min` when unset) counts as the server "nyseion-min" or
+"nyseion-full"; in the composite those are nyseion variants (the field has the best of them). A nyseion line
 without it comes from an older h3-bench.sh, when unset meant `full` before decision Q2 and `min` after
-it: it counts as "rimu-unlabelled", never mixed with the others. A line that carries "variant" (the
-aws-h3 kit's variant phase) counts as "rimu@<variant>".
+it: it counts as "nyseion-unlabelled", never mixed with the others. A line that carries "variant" (the
+aws-h3 kit's variant phase) counts as "nyseion@<variant>".
 
 --cpu prints, instead, a markdown table per server and profile: the median rps of the starts (and
 each start's), the medians over the starts of the server's and the generator's CPU microseconds per
 response, the errors summed, the range of the box's load, and for the servers that report them
-(rimu) the medians of the datagrams received and sent and the packets sent per response and of the
+(nyseion) the medians of the datagrams received and sent and the packets sent per response and of the
 share of ACK-only packets among the packets sent.
 """
 
@@ -31,17 +31,17 @@ import statistics
 import sys
 
 PROFILES = ("baseline-h3", "static-h3")
-FIELD = ("plod", "fib", "aegon", "rimu")
+FIELD = ("plod", "fib", "aegon", "nyseion")
 
 
 def name_of(row):
-    """The name a line is listed under: rimu with its variant or its headers."""
+    """The name a line is listed under: nyseion with its variant or its headers."""
     if row.get("variant"):
         return f"{row['server']}@{row['variant']}"
     if row.get("headers"):
         return f"{row['server']}-{row['headers']}"
-    if row["server"] == "rimu":
-        return "rimu-unlabelled"
+    if row["server"] == "nyseion":
+        return "nyseion-unlabelled"
     return row["server"]
 
 
@@ -121,7 +121,7 @@ def main(argv):
         return
     rps, dirty = load(paths[0], last)
     servers = sorted({key[0] for key in rps})
-    # The field is plod, fib, aegon and rimu, whichever headers variant of rimu a line has
+    # The field is plod, fib, aegon and nyseion, whichever headers variant of nyseion a line has
     in_field = [s for s in servers if s.partition("-")[0] in FIELD]
     top = {p: max((rps.get((s, p), 0.0) for s in in_field), default=0.0) for p in PROFILES}
     rank = {}

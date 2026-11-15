@@ -111,7 +111,7 @@ mod tests {
       (b":status", b"500"),
       // Static names with other values, below and above the 4-bit prefix (4 and 92)
       (b"content-length", b"13"),
-      (b"server", b"rimu"),
+      (b"server", b"nyseion"),
       // A name that is not in the table, with an empty value and with a value of 200 bytes
       (b"x-custom", b""),
       (b"x-custom-long-name", &long),
@@ -127,7 +127,7 @@ mod tests {
     assert_eq!(section.get(..7).unwrap(), &expected_head);
     // 0xff 0x08: 71 = 63 + 8 in a 6-bit prefix; then `content-length: 13` as 0x54 0x02 "13"
     assert_eq!(section.get(7..12).unwrap(), &[0x08, 0x54, 0x02, b'1', b'3']);
-    // `server: rimu`: 92 = 15 + 77 in a 4-bit prefix, raw value
+    // `server: nyseion`: 92 = 15 + 77 in a 4-bit prefix, raw value
     assert_eq!(section.get(12..19).unwrap(), &[0x5f, 0x4d, 0x04, b'r', b'i', b'm', b'u']);
     // `x-custom` with a literal name: 0x27 is 001, N=0, H=0 and 7 filling the 3-bit prefix; 8 = 7 + 1
     assert_eq!(section.get(19..21).unwrap(), &[0x27, 0x01]);

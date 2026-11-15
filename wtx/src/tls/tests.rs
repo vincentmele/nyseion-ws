@@ -8,7 +8,7 @@ use crate::{
 use std::net::TcpListener;
 
 #[cfg_attr(miri, ignore)]
-#[rimu_ws::test]
+#[nyseion_ws::test]
 async fn simple_connection(runtime: &StdRuntime) {
   let uri = _uri();
   let mut client_rng = ChaCha20::from_std_random().unwrap();
@@ -56,7 +56,7 @@ async fn simple_connection(runtime: &StdRuntime) {
 // close_notify ends the stream cleanly instead of failing the read with EIO.
 #[cfg(all(feature = "libc", target_os = "linux"))]
 #[cfg_attr(miri, ignore)]
-#[rimu_ws::test]
+#[nyseion_ws::test]
 async fn kernel_tls_connection(runtime: &StdRuntime) {
   for kernel_tls in [true, false] {
     let uri = _uri();

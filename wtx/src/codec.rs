@@ -42,7 +42,7 @@ pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{DecodeWrapper, EncodeWrapper, GenericCodec};
 #[cfg(feature = "gzip-encoder")]
-pub use rimu_gzip::{
+pub use nyseion_gzip::{
   Encoder as GzipEncoder, Level as GzipLevel, Params as GzipParams, Strategy as GzipStrategy,
 };
 pub use hex::*;

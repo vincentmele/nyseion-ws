@@ -22,7 +22,7 @@ pub(crate) fn main(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #block
       }
 
-      let runtime = rimu_ws::sync::Arc::new(rimu_ws::executor::StdRuntime::new());
+      let runtime = nyseion_ws::sync::Arc::new(nyseion_ws::executor::StdRuntime::new());
       let _runtime_clone = runtime.clone();
       runtime
         .block_on(async move {
@@ -56,7 +56,7 @@ pub(crate) fn test(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #block
       }
 
-      let runtime = rimu_ws::sync::Arc::new(rimu_ws::executor::StdRuntime::new());
+      let runtime = nyseion_ws::sync::Arc::new(nyseion_ws::executor::StdRuntime::new());
       let _runtime_clone = runtime.clone();
       runtime
         .block_on(async move {

@@ -175,7 +175,7 @@ where
   }
 }
 
-/// Adds `server: rimu-ws` to every response, and answers `/blocked` with 403 itself.
+/// Adds `server: nyseion-ws` to every response, and answers `/blocked` with 403 itself.
 struct ServerHeader;
 
 impl Middleware<(), crate::Error> for ServerHeader {
@@ -203,7 +203,7 @@ impl Middleware<(), crate::Error> for ServerHeader {
     res: HttpResponse<&mut MsgBufferString>,
   ) -> crate::Result<ControlFlow<StatusCode, ()>> {
     let server = KnownHeaderName::Server.into();
-    res.msg_data.headers.push_from_iter(Header::from_name_and_value(server, ["rimu-ws"]))?;
+    res.msg_data.headers.push_from_iter(Header::from_name_and_value(server, ["nyseion-ws"]))?;
     Ok(ControlFlow::Continue(()))
   }
 }
@@ -307,7 +307,7 @@ impl Drop for Served {
 
 /// A directory of static files for one test.
 fn static_dir(name: &str) -> PathBuf {
-  let dir = std::env::temp_dir().join(format!("rimu-h3fw-{name}-{}", std::process::id()));
+  let dir = std::env::temp_dir().join(format!("nyseion-h3fw-{name}-{}", std::process::id()));
   let _rslt = std::fs::remove_dir_all(&dir);
   std::fs::create_dir_all(&dir).unwrap();
   dir
@@ -1435,9 +1435,9 @@ fn manual_routes_and_middlewares_on_h3() {
   let errors = served.errors();
   assert!(errors.len() == 1 && errors[0].contains("OperationModeMismatch"), "{errors:?}");
   let rsp = client.get("/baseline2?a=1&b=1", &[]);
-  assert_eq!((rsp.field(b"server"), rsp.body.as_slice()), (Some(&b"rimu-ws"[..]), &b"2"[..]));
+  assert_eq!((rsp.field(b"server"), rsp.body.as_slice()), (Some(&b"nyseion-ws"[..]), &b"2"[..]));
   let rsp = client.get("/blocked", &[]);
-  assert_eq!((status(&rsp), rsp.field(b"server")), (&b"403"[..], Some(&b"rimu-ws"[..])));
+  assert_eq!((status(&rsp), rsp.field(b"server")), (&b"403"[..], Some(&b"nyseion-ws"[..])));
   assert!(rsp.body.is_empty());
 }
 

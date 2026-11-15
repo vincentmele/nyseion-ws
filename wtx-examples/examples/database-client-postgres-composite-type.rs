@@ -4,10 +4,10 @@
 //! ```
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   codec::{Decode, Encode},
   database::{
     DbClient as _, Record, Typed,
@@ -18,9 +18,9 @@ use rimu_ws::{
 };
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = rimu_ws_examples::postgres_client(uri).await?;
+  let mut executor = nyseion_ws_examples::postgres_client(uri).await?;
   executor
     .execute_stmt_none(
       "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",
@@ -36,23 +36,23 @@ async fn main() -> rimu_ws::Result<()> {
 #[derive(Debug, PartialEq)]
 struct CustomCompositeType(u32, u64);
 
-impl Decode<'_, Postgres<rimu_ws::Error>> for CustomCompositeType {
+impl Decode<'_, Postgres<nyseion_ws::Error>> for CustomCompositeType {
   #[inline]
-  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, rimu_ws::Error> {
-    let mut sd = StructDecoder::<rimu_ws::Error>::new(dw);
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, nyseion_ws::Error> {
+    let mut sd = StructDecoder::<nyseion_ws::Error>::new(dw);
     Ok(Self(sd.decode()?, sd.decode()?))
   }
 }
 
-impl Encode<Postgres<rimu_ws::Error>> for CustomCompositeType {
+impl Encode<Postgres<nyseion_ws::Error>> for CustomCompositeType {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), rimu_ws::Error> {
-    let _ev = StructEncoder::<rimu_ws::Error>::new(ew)?.encode(self.0)?.encode(self.1)?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), nyseion_ws::Error> {
+    let _ev = StructEncoder::<nyseion_ws::Error>::new(ew)?.encode(self.0)?.encode(self.1)?;
     Ok(())
   }
 }
 
-impl Typed<Postgres<rimu_ws::Error>> for CustomCompositeType {
+impl Typed<Postgres<nyseion_ws::Error>> for CustomCompositeType {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
     None

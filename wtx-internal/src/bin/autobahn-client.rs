@@ -1,13 +1,13 @@
 //! WebSocket autobahn client.
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
-use rimu_ws_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
+use nyseion_ws_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let host = "127.0.0.1:9080";
   let mut buffer = VectorUsize::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await.unwrap() {

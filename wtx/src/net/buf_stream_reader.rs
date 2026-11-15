@@ -516,7 +516,7 @@ pub(crate) fn release_if_oversized(buffer: &mut VectorUsize<u8>, used: usize) {
 mod tests {
   use crate::net::{BufStreamReader, BytesStream, StreamWriter};
 
-  #[rimu_ws::test]
+  #[nyseion_ws::test]
   async fn read_header_and_payload() {
     let mut stream = BytesStream::default();
     stream.write_all(&[0, 2, 1, 2]).await.unwrap();
@@ -531,7 +531,7 @@ mod tests {
   // buffer is never empty: the room already consumed must be reused instead of the buffer growing
   // towards `capacity_ub` on every connection.
   #[cfg(feature = "web-socket")]
-  #[rimu_ws::test]
+  #[nyseion_ws::test]
   async fn an_unread_tail_does_not_grow_the_buffer() {
     use crate::{
       collections::MaybeUninitSlice,
@@ -574,7 +574,7 @@ mod tests {
   // One large message must not hold its memory for the rest of the connection: once a small
   // message follows it, the buffer is released. A run of large messages keeps it, so that each doesn't pay
   // for a new allocation.
-  #[rimu_ws::test]
+  #[nyseion_ws::test]
   async fn a_large_read_does_not_keep_its_buffer() {
     let mut stream = BytesStream::default();
     let large = alloc::vec![7; 4 << 20];
@@ -596,7 +596,7 @@ mod tests {
     assert!(capacity <= 1 << 20, "{capacity} bytes kept after a small read (was {kept})");
   }
 
-  #[rimu_ws::test]
+  #[nyseion_ws::test]
   async fn zero_payload() {
     let mut stream = BytesStream::default();
     stream.write_all(&[0, 0]).await.unwrap();

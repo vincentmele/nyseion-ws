@@ -98,7 +98,7 @@ where
   /// Constructs a new instance based on an arbitrary [Vec].
   ///
   /// ```rust
-  /// let mut vec = rimu_ws::collections::VectorU8::<u8>::from_vec(Vec::new()).unwrap();
+  /// let mut vec = nyseion_ws::collections::VectorU8::<u8>::from_vec(Vec::new()).unwrap();
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
@@ -109,7 +109,7 @@ where
   /// Constructs a new, empty instance.
   ///
   /// ```rust
-  /// let mut vec = rimu_ws::collections::VectorU8::<u8>::new();
+  /// let mut vec = nyseion_ws::collections::VectorU8::<u8>::new();
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
@@ -121,7 +121,7 @@ where
   /// Constructs a new instance based on an arbitrary [Vec].
   ///
   /// ```rust
-  /// let mut vec = rimu_ws::collections::VectorU8::<u8>::with_capacity(2).unwrap();
+  /// let mut vec = nyseion_ws::collections::VectorU8::<u8>::with_capacity(2).unwrap();
   /// assert!(vec.capacity() >= 2);
   /// ```
   #[inline(always)]
@@ -136,7 +136,7 @@ where
   /// Constructs a new, empty instance with the exact specified capacity.
   ///
   /// ```rust
-  /// let mut vec = rimu_ws::collections::VectorU8::<u8>::with_exact_capacity(2).unwrap();
+  /// let mut vec = nyseion_ws::collections::VectorU8::<u8>::with_exact_capacity(2).unwrap();
   /// assert_eq!(vec.capacity(), 2);
   /// ```
   #[inline(always)]
@@ -149,7 +149,7 @@ where
   /// Transfers memory ownership to the vector of the standard library.
   ///
   /// ```rust
-  /// let vec = rimu_ws::collections::VectorU8::<u8>::new();
+  /// let vec = nyseion_ws::collections::VectorU8::<u8>::new();
   /// assert_eq!(vec.into_vec(), Vec::<u8>::new());
   /// ```
   #[inline]
@@ -1161,7 +1161,7 @@ mod serde {
 // SAFETY: `as_ptr_mut` points to `capacity` bytes, the first `len` initialized; `reserve` makes room
 // for `additional` more (or does not return); `set_len` forwards with the same contract.
 #[cfg(feature = "json-writer")]
-unsafe impl rimu_json::JsonBuffer for Vector<usize, u8> {
+unsafe impl nyseion_json::JsonBuffer for Vector<usize, u8> {
   #[inline]
   fn as_mut_ptr(&mut self) -> *mut u8 {
     self.as_ptr_mut()
@@ -1199,7 +1199,7 @@ unsafe impl rimu_json::JsonBuffer for Vector<usize, u8> {
 mod json_buffer_tests {
   use crate::collections::VectorUsize;
   use alloc::vec::Vec;
-  use rimu_json::JsonWriter;
+  use nyseion_json::JsonWriter;
 
   #[derive(serde::Serialize)]
   struct Object {

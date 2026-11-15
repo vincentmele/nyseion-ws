@@ -1,4 +1,4 @@
-//! The `rimu-ws-soak` target: an echo server on `UringExecutor`, at `127.0.0.1:9080`, with the
+//! The `nyseion-ws-soak` target: an echo server on `UringExecutor`, at `127.0.0.1:9080`, with the
 //! executor's limits from the environment so the harness's oracles can match them.
 //!
 //! `WTX_HANDSHAKE_MS` (default 2000), `WTX_IDLE_MS` (5000), `WTX_CLOSE_MS` (2000),
@@ -10,7 +10,7 @@
 #[path = "common/soak_echo.rs"]
 mod soak_echo;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   executor::{UringExecutor, UringParams, UringRuntime, UringTcpStream},
   http::WebSocketServerFramework,
@@ -28,7 +28,7 @@ fn timeout(name: &str, default_ms: u64) -> Option<Duration> {
   Some(env(name, default_ms)).filter(|el| *el > 0).map(Duration::from_millis)
 }
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let settings = settings();
   eprintln!("soak-server-uring: {settings:?}");
   let params = UringParams::new()
@@ -38,11 +38,11 @@ fn main() -> rimu_ws::Result<()> {
     .set_idle_timeout(timeout("WTX_IDLE_MS", 5000))
     .set_peer_addrs(false)
     .set_rx_high_water(usize::try_from(env("WTX_RX_HIGH_WATER", 65536)).unwrap_or(65536));
-  let error_cb: fn(rimu_ws::Error) =
+  let error_cb: fn(nyseion_ws::Error) =
     if settings.log_errors { |error| eprintln!("{error}") } else { |_| {} };
   let framework = WebSocketServerFramework::<
     (),
-    fn(rimu_ws::Error),
+    fn(nyseion_ws::Error),
     UringExecutor,
     _,
     ChaCha20,
@@ -65,13 +65,13 @@ fn main() -> rimu_ws::Result<()> {
 async fn echo(
   buffer: VectorUsize<u8>,
   ws: WebSocket<(), UringTcpStream, PlaintextCtx, false>,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   soak_echo::echo(buffer, ws).await
 }
 
 async fn echo_deflate(
   buffer: VectorUsize<u8>,
   ws: WebSocket<Option<NegotiatedZlibRs>, UringTcpStream, PlaintextCtx, false>,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   soak_echo::echo(buffer, ws).await
 }

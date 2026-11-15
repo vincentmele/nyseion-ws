@@ -7,16 +7,16 @@ use crate::{
     write_response,
   },
 };
-use rimu_http1::{BodyDecoder, BodyStatus, RequestParser, Status};
+use nyseion_http1::{BodyDecoder, BodyStatus, RequestParser, Status};
 use alloc::vec::Vec;
 use core::mem;
 
 /// Maximum number of bytes buffered between two `poll_event` calls.
 const BUF_CAP: usize = 256 * 1024;
-/// rimu-http1's limits as rimu-ws has always had them: a 16 KiB head with no shorter limit per line
-/// (rimu-http1's default caps a line at 8 KiB), so large cookies and tokens keep working.
-const PARSER_CONFIG: rimu_http1::Config =
-  rimu_http1::Config { max_line_len: 16 * 1024, ..rimu_http1::Config::DEFAULT };
+/// nyseion-http1's limits as nyseion-ws has always had them: a 16 KiB head with no shorter limit per line
+/// (nyseion-http1's default caps a line at 8 KiB), so large cookies and tokens keep working.
+const PARSER_CONFIG: nyseion_http1::Config =
+  nyseion_http1::Config { max_line_len: 16 * 1024, ..nyseion_http1::Config::DEFAULT };
 /// Chunk framing, extensions and trailers a body may carry in addition to a quarter of its
 /// payload.
 const FRAMING_BUDGET: usize = 16 * 1024;
@@ -85,9 +85,9 @@ enum Head {
   Bad(StatusCode),
   Partial,
   Bodyless(Http1Request<'static>, usize),
-  /// The framing (as rimu-ws and as rimu-http1 see it), the length of the head, and if the client
+  /// The framing (as nyseion-ws and as nyseion-http1 see it), the length of the head, and if the client
   /// waits for a 100 (Continue) first.
-  WithBody(BodyKind, rimu_http1::BodyKind, usize, bool),
+  WithBody(BodyKind, nyseion_http1::BodyKind, usize, bool),
 }
 
 /// The buffers of an [`Http1Conn`], to serve another connection with: what
@@ -436,7 +436,7 @@ impl Http1Conn {
     }
   }
 
-  /// Sets `view` to the completed head again (no new parse: rimu-http1 rebuilds the view of the
+  /// Sets `view` to the completed head again (no new parse: nyseion-http1 rebuilds the view of the
   /// head it completed), returning it.
   fn set_view(&mut self) -> crate::Result<Http1Request<'static>> {
     let input = self.buf.get(self.start..).unwrap_or_default();
@@ -465,9 +465,9 @@ impl Http1Conn {
   }
 }
 
-/// rimu-ws's view of a request rimu-http1 parsed; `None` for an extension method or a length that
+/// nyseion-ws's view of a request nyseion-http1 parsed; `None` for an extension method or a length that
 /// does not fit in `usize`.
-fn request_of<'b>(wire: &rimu_http1::Request<'b>) -> Option<Http1Request<'b>> {
+fn request_of<'b>(wire: &nyseion_http1::Request<'b>) -> Option<Http1Request<'b>> {
   Some(Http1Request {
     method: method_of(wire.method)?,
     version: version_of(wire.version),
@@ -1143,8 +1143,8 @@ mod tests {
 
   #[test]
   fn header_lines_up_to_the_head_limit_are_accepted() {
-    // A 12 KiB cookie: over rimu-http1's default 8 KiB line limit, within the 16 KiB head limit
-    // rimu-ws has always had.
+    // A 12 KiB cookie: over nyseion-http1's default 8 KiB line limit, within the 16 KiB head limit
+    // nyseion-ws has always had.
     let cookie = "c".repeat(12 * 1024);
     let req = alloc::format!("GET / HTTP/1.1\r\nHost: a\r\nCookie: {cookie}\r\n\r\n");
     let mut c = conn();

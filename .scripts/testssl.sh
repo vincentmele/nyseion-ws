@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 ARG=${1:-""}
-BACKENDS=("rimu-ws/crypto-alr rimu-ws/_hack" "rimu-ws/crypto-graviola" "rimu-ws/crypto-ring" "rimu-ws/crypto-ruco")
+BACKENDS=("nyseion-ws/crypto-alr nyseion-ws/_hack" "nyseion-ws/crypto-graviola" "nyseion-ws/crypto-ring" "nyseion-ws/crypto-ruco")
 EXIT_CODE=0
 
 if [ "$ARG" != "ci" ]; then
@@ -13,8 +13,8 @@ fi;
 for backend in "${BACKENDS[@]}"; do
     echo -e "\e[0;33m***** Testing with '$backend' *****\e[0m"
 
-	cargo build --bin testssl --features "$backend testssl" -p rimu-ws-internal --release
-	cargo run --bin testssl --features "$backend testssl" -p rimu-ws-internal --release &> /tmp/testssl.txt &
+	cargo build --bin testssl --features "$backend testssl" -p nyseion-ws-internal --release
+	cargo run --bin testssl --features "$backend testssl" -p nyseion-ws-internal --release &> /tmp/testssl.txt &
 
 	podman unshare rm -rf /tmp/testssl
 	mkdir -p /tmp/testssl

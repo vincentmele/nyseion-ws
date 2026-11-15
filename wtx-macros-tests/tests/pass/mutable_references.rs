@@ -1,14 +1,14 @@
 //! Uses mutable references to send packages
 
-rimu_ws::create_packages_aux_wrapper!();
+nyseion_ws::create_packages_aux_wrapper!();
 
-use rimu_ws::client_api_framework::network::transport::SendingTransport;
+use nyseion_ws::client_api_framework::network::transport::SendingTransport;
 
 type Api = ();
 
-#[rimu_ws::pkg(data_format(json), id(super::Api), transport(stub))]
+#[nyseion_ws::pkg(data_format(json), id(super::Api), transport(stub))]
 mod pkg {
-  use rimu_ws::client_api_framework::network::transport::TransportParams;
+  use nyseion_ws::client_api_framework::network::transport::TransportParams;
 
   #[pkg::aux]
   impl<A, DRSR, TP> super::PkgsAux<A, DRSR, TP> where TP: TransportParams {}

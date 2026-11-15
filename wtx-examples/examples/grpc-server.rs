@@ -2,11 +2,11 @@
 //! module.
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
 use std::borrow::Cow;
-use rimu_ws::{
+use nyseion_ws::{
   codec::format::QuickProtobuf,
   executor::UringExecutor,
   grpc::{GrpcManager, GrpcMiddleware},
@@ -17,17 +17,17 @@ use rimu_ws::{
   rng::{ChaCha20, CryptoSeedableRng},
   tls::TlsConfig,
 };
-use rimu_ws_examples::{
+use nyseion_ws_examples::{
   PUBLIC_KEY, SECRET_KEY,
   grpc_bindings::wtx::{GenericRequest, GenericResponse},
   host_from_args,
 };
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let rng = ChaCha20::from_std_random()?;
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::new(
-    rimu_ws::paths!(("/wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
+    nyseion_ws::paths!(("/wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
   Http2ServerFramework::new(UringExecutor::default(), rng, tls_config)?
@@ -38,7 +38,7 @@ fn main() -> rimu_ws::Result<()> {
 
 async fn wtx_generic_service_generic_method(
   State { data, req }: State<'_, GrpcManager<QuickProtobuf>>,
-) -> rimu_ws::Result<StatusCode> {
+) -> nyseion_ws::Result<StatusCode> {
   let _generic_request: GenericRequest = data.des_from_req_bytes(&req.msg_data.body)?;
   req.clear();
   data.ser_to_res_bytes(

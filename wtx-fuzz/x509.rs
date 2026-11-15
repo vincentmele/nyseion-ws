@@ -2,7 +2,7 @@
 
 #![no_main]
 
-use rimu_ws::{
+use nyseion_ws::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode, DecodeWrapper, GenericCodec},
   collections::VectorUsize,

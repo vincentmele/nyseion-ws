@@ -183,7 +183,7 @@ mod tests {
     assert_eq!(find_name(b":authority"), Some(0));
     assert_eq!(find_name(b"x-unknown"), None);
     assert_eq!(find_exact(b":status", b"201"), None);
-    assert_eq!(find_exact(b"server", b"rimu"), None);
+    assert_eq!(find_exact(b"server", b"nyseion"), None);
     // Every index finds itself
     for (idx, (name, value)) in STATIC_TABLE.iter().enumerate() {
       let idx = u8::try_from(idx).unwrap();

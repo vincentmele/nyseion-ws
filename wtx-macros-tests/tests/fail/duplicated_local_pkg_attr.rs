@@ -1,4 +1,4 @@
-#[rimu_ws::pkg(data_format(json), id(FooId))]
+#[nyseion_ws::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::aux]
   #[pkg::aux]
@@ -12,11 +12,11 @@ mod pkg {
   struct Res;
 }
 
-#[rimu_ws::pkg(data_format(json), id(FooId))]
+#[nyseion_ws::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::before_sending]
   #[pkg::before_sending]
-  async fn before_sending() -> rimu_ws::Result<()> {
+  async fn before_sending() -> nyseion_ws::Result<()> {
     Ok(())
   }
 
@@ -28,7 +28,7 @@ mod pkg {
   struct Res;
 }
 
-#[rimu_ws::pkg(data_format(json), id(FooId))]
+#[nyseion_ws::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[derive(Debug)]
   #[pkg::req_data]

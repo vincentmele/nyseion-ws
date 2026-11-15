@@ -862,7 +862,7 @@ mod tests {
 
   impl Http1Service for WithHeader {
     fn call(&mut self, _: Http1Request<'_>, _: &[u8], res: &mut Http1Res) {
-      res.push_header("server", "rimu-ws").unwrap();
+      res.push_header("server", "nyseion-ws").unwrap();
       res.body_mut().extend_from_slice(b"pong");
     }
   }
@@ -894,7 +894,7 @@ mod tests {
 
   impl Http1Service for EchoWithHeader {
     fn call(&mut self, head: Http1Request<'_>, body: &[u8], res: &mut Http1Res) {
-      res.push_header("server", "rimu-ws").unwrap();
+      res.push_header("server", "nyseion-ws").unwrap();
       if head.path == "/echo" {
         res.body_mut().extend_from_slice(body);
       } else {
@@ -950,7 +950,7 @@ mod tests {
     });
     assert_eq!(allocations, 0, "allocations of {counted} connections");
     for stream in &streams {
-      let answered = stream.output.windows(14).filter(|el| el == b"server: rimu-w").count();
+      let answered = stream.output.windows(14).filter(|el| el == b"server: nyseion-w").count();
       assert_eq!(answered, 5);
     }
   }

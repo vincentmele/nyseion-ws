@@ -4,5 +4,5 @@
 #![no_main]
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
-  rimu_ws::http2::differential::run(data);
+  nyseion_ws::http2::differential::run(data);
 });

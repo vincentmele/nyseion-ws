@@ -4,10 +4,10 @@
 //! The server runs on io_uring. For a router of ordinary endpoints, see the
 //! `http2-server-framework` examples.
 
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   executor::UringExecutor,
   http::{
@@ -18,11 +18,11 @@ use rimu_ws::{
   rng::{ChaCha20, CryptoSeedableRng},
   tls::TlsConfig,
 };
-use rimu_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
+use nyseion_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
-fn main() -> rimu_ws::Result<()> {
-  let router = HttpRouter::paths(rimu_ws::paths!(("/", get(teapot))))?;
-  Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+fn main() -> nyseion_ws::Result<()> {
+  let router = HttpRouter::paths(nyseion_ws::paths!(("/", get(teapot))))?;
+  Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?,
@@ -31,7 +31,7 @@ fn main() -> rimu_ws::Result<()> {
   .run_in_threads(&host_from_args(), router)
 }
 
-async fn teapot(mut manual_stream: ManualStream<(), ServerStream>) -> rimu_ws::Result<()> {
+async fn teapot(mut manual_stream: ManualStream<(), ServerStream>) -> nyseion_ws::Result<()> {
   println!("An arbitrary request has been received: {:#?}", manual_stream.req);
   let mut body = VectorUsize::new();
   loop {

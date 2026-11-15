@@ -17,7 +17,7 @@ debug = "line-tables-only"
 
 [workspace]
 members = [
-    "rimu-ws-soak",
+    "nyseion-ws-soak",
     "wtx",
     "wtx-examples",
     "wtx-fuzz",

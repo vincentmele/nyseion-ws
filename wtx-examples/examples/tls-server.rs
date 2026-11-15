@@ -3,18 +3,18 @@
 //! There is no HTTP, WebSocket or any other protocol, only TLS!
 
 extern crate tokio;
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
 use tokio::net::{TcpListener, TcpStream};
-use rimu_ws::{
+use nyseion_ws::{
   net::{StreamReader, StreamWriter},
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsAcceptor, TlsConfig},
 };
-use rimu_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
+use nyseion_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let listener = TcpListener::bind(&host_from_args()).await?;
   loop {
     let (stream, _) = listener.accept().await?;
@@ -26,7 +26,7 @@ async fn main() -> rimu_ws::Result<()> {
   }
 }
 
-async fn connection(stream: TcpStream) -> rimu_ws::Result<()> {
+async fn connection(stream: TcpStream) -> nyseion_ws::Result<()> {
   let rng = ChaCha20::from_std_random()?;
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let tls_connector = TlsAcceptor::new(tls_config, rng, stream);

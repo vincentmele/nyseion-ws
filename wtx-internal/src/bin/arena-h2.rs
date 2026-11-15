@@ -51,7 +51,7 @@
 //! worker and exits.
 
 use core::ops::ControlFlow;
-use rimu_ws::{
+use nyseion_ws::{
   collections::{ArrayVectorU8, VectorUsize},
   executor::{UringExecutor, UringParams, UringRuntime},
   http::{
@@ -71,7 +71,7 @@ use rimu_ws::{
 
 macro_rules! paths {
   ($static_root:expr) => {
-    rimu_ws::paths!(
+    nyseion_ws::paths!(
       ("/baseline2", get(endpoint_baseline2)),
       ("/json/{count}", get(endpoint_json)),
       ("/static/{*file}", Get(StaticFiles::new($static_root)?))
@@ -79,7 +79,7 @@ macro_rules! paths {
   };
   // The same with the route of the interop tests (ruling T21-c)
   ($static_root:expr, echo) => {
-    rimu_ws::paths!(
+    nyseion_ws::paths!(
       ("/baseline2", get(endpoint_baseline2)),
       ("/echo", post(endpoint_echo)),
       ("/json/{count}", get(endpoint_json)),
@@ -107,7 +107,7 @@ fn static_dir() -> String {
   std::env::var("STATIC_DIR").unwrap_or_else(|_| "/data/static".into())
 }
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let dataset = load_dataset();
   let cert_dir = std::env::var("CERT_DIR").unwrap_or_else(|_| "/certs".into());
   let tls_enabled = std::path::Path::new(&cert_dir).join("server.crt").exists();
@@ -121,9 +121,9 @@ fn main() -> rimu_ws::Result<()> {
     if let Some(elem) = signals {
       stats_signals::spawn_reporter(elem, h3_stats);
     }
-    let tls = std::thread::spawn(move || -> rimu_ws::Result<()> {
+    let tls = std::thread::spawn(move || -> nyseion_ws::Result<()> {
       let tls_config = TlsConfig::from_keys_pem(&cert, key.as_slice())?;
-      Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+      Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
         UringExecutor::default(),
         ChaCha20::from_std_random()?,
         tls_config,
@@ -139,7 +139,7 @@ fn main() -> rimu_ws::Result<()> {
     eprintln!("arena-h2: no {cert_dir}/server.crt, TLS on 8443 disabled");
     (None, None)
   };
-  Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+  Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     TlsConfig::plaintext(),
@@ -164,9 +164,9 @@ fn spawn_h3(
   cert: &[u8],
   key: Vec<u8>,
   data: ConnAux,
-) -> rimu_ws::Result<(Http3Stats, std::thread::JoinHandle<rimu_ws::Result<()>>)> {
+) -> nyseion_ws::Result<(Http3Stats, std::thread::JoinHandle<nyseion_ws::Result<()>>)> {
   let knobs = knobs::H3Knobs::from_vars(|name| std::env::var(name).ok())
-    .map_err(|err| rimu_ws::Error::from(std::io::Error::other(err)))?;
+    .map_err(|err| nyseion_ws::Error::from(std::io::Error::other(err)))?;
   eprintln!("arena-h2: h3 knobs {}", knobs.line());
   let run = H3Run {
     addr: "[::]:8443".into(),
@@ -188,7 +188,7 @@ struct H3Run {
   /// The workers; one per CPU if `None`.
   local_runtimes: Option<core::num::NonZeroUsize>,
   /// The signal that ends the server and the time it lets connections drain, if any.
-  shutdown: Option<(rimu_ws::http::ShutdownSignal, core::time::Duration)>,
+  shutdown: Option<(nyseion_ws::http::ShutdownSignal, core::time::Duration)>,
   /// The directory of `/static`.
   static_root: String,
   /// If the router also has `/echo` (`ARENA_TEST_ROUTES`).
@@ -202,13 +202,13 @@ fn spawn_h3_with<RC>(
   data: ConnAux,
   run: H3Run,
   rc: RC,
-) -> rimu_ws::Result<(Http3Stats, std::thread::JoinHandle<rimu_ws::Result<()>>)>
+) -> nyseion_ws::Result<(Http3Stats, std::thread::JoinHandle<nyseion_ws::Result<()>>)>
 where
-  RC: Clone + Fn() -> rimu_ws::Result<UringRuntime> + Send + 'static,
+  RC: Clone + Fn() -> nyseion_ws::Result<UringRuntime> + Send + 'static,
 {
   let H3Run { addr, knobs, local_runtimes, shutdown, static_root, test_routes } = run;
   let min_headers = knobs.headers == knobs::Headers::Min;
-  let mut framework = Http3ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+  let mut framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     TlsConfig::from_keys_pem(cert, key.as_slice())?,
@@ -226,7 +226,7 @@ where
     framework = framework.set_shutdown(signal, drain);
   }
   let stats = framework.stats();
-  let handle = std::thread::spawn(move || -> rimu_ws::Result<()> {
+  let handle = std::thread::spawn(move || -> nyseion_ws::Result<()> {
     let root = static_root.as_str();
     let rslt = match (min_headers, test_routes) {
       (true, false) => framework.run_in_threads(&addr, router!(root, no_middleware)?),
@@ -250,7 +250,7 @@ fn test_routes(var: impl Fn(&str) -> Option<String>) -> bool {
   var("ARENA_TEST_ROUTES").is_some_and(|v| v == "1")
 }
 
-fn error_cb(err: rimu_ws::Error) {
+fn error_cb(err: nyseion_ws::Error) {
   if std::env::var("ARENA_LOG_ERRORS").is_ok() {
     eprintln!("arena-h2: {err}");
   }
@@ -264,19 +264,19 @@ fn recv_params() -> HttpRecvParams {
   }
 }
 
-fn runtime() -> rimu_ws::Result<UringRuntime> {
+fn runtime() -> nyseion_ws::Result<UringRuntime> {
   UringRuntime::with_params(UringParams::default())
 }
 
 /// The runtime of an h3 worker. Its UDP socket has a receive ring of its own, so the ring of TCP
 /// receives that every runtime makes (512 buffers of 4 KiB, 2 MiB) is never used: it is made small.
-fn runtime_h3() -> rimu_ws::Result<UringRuntime> {
+fn runtime_h3() -> nyseion_ws::Result<UringRuntime> {
   UringRuntime::with_params(UringParams::default().set_recv_buffers(4, 4096))
 }
 
 /// The `ARENA_H3_*` switches: see the table of the program's documentation.
 mod knobs {
-  use rimu_ws::{
+  use nyseion_ws::{
     executor::UdpParams,
     http3::H3Params,
     quic::{QuicLimits, QuicParams},
@@ -627,10 +627,10 @@ mod stats_signals {
   }
 }
 
-/// Adds `server: rimu-ws` to every response.
+/// Adds `server: nyseion-ws` to every response.
 struct ServerHeader;
 
-impl Middleware<ConnAux, rimu_ws::Error> for ServerHeader {
+impl Middleware<ConnAux, nyseion_ws::Error> for ServerHeader {
   type Aux = ();
 
   fn aux(&self) -> Self::Aux {}
@@ -640,7 +640,7 @@ impl Middleware<ConnAux, rimu_ws::Error> for ServerHeader {
     _: &mut ConnAux,
     _: &mut Self::Aux,
     _: &mut Request<MsgBufferString>,
-  ) -> rimu_ws::Result<ControlFlow<StatusCode, ()>> {
+  ) -> nyseion_ws::Result<ControlFlow<StatusCode, ()>> {
     Ok(ControlFlow::Continue(()))
   }
 
@@ -649,21 +649,21 @@ impl Middleware<ConnAux, rimu_ws::Error> for ServerHeader {
     _: &mut ConnAux,
     _: &mut Self::Aux,
     res: Response<&mut MsgBufferString>,
-  ) -> rimu_ws::Result<ControlFlow<StatusCode, ()>> {
+  ) -> nyseion_ws::Result<ControlFlow<StatusCode, ()>> {
     res
       .msg_data
       .headers
-      .push_from_iter(Header::from_name_and_value(KnownHeaderName::Server.into(), ["rimu-ws"]))?;
+      .push_from_iter(Header::from_name_and_value(KnownHeaderName::Server.into(), ["nyseion-ws"]))?;
     Ok(ControlFlow::Continue(()))
   }
 }
 
-#[derive(Clone, rimu_ws::Lease)]
+#[derive(Clone, nyseion_ws::Lease)]
 struct ConnAux {
   dataset: Arc<VectorUsize<DatasetItem>>,
 }
 
-async fn endpoint_baseline2(state: State<'_, ConnAux>) -> rimu_ws::Result<VerbatimParams> {
+async fn endpoint_baseline2(state: State<'_, ConnAux>) -> nyseion_ws::Result<VerbatimParams> {
   let mut sum: i64 = 0;
   for (_, value) in state.req.msg_data.uri.query_params() {
     sum = sum.wrapping_add(value.parse()?);
@@ -678,7 +678,7 @@ async fn endpoint_baseline2(state: State<'_, ConnAux>) -> rimu_ws::Result<Verbat
 }
 
 /// `POST /echo`: the body of the request, as it came, as the body of the response.
-async fn endpoint_echo(state: State<'_, ConnAux>) -> rimu_ws::Result<VerbatimParams> {
+async fn endpoint_echo(state: State<'_, ConnAux>) -> nyseion_ws::Result<VerbatimParams> {
   // The fields of the request are not the response's
   state.req.msg_data.headers.clear();
   state.req.msg_data.headers.push_from_iter(Header::from_name_and_value(
@@ -691,7 +691,7 @@ async fn endpoint_echo(state: State<'_, ConnAux>) -> rimu_ws::Result<VerbatimPar
 async fn endpoint_json(
   state: State<'_, ConnAux>,
   Path(count): Path<usize>,
-) -> rimu_ws::Result<JsonReply> {
+) -> nyseion_ws::Result<JsonReply> {
   let mut m: i64 = 1;
   for (key, value) in state.req.msg_data.uri.query_params() {
     if key == "m" {
@@ -713,7 +713,7 @@ fn write_json(
   dataset: &[DatasetItem],
   count: usize,
   m: i64,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   let clamped = count.min(dataset.len());
   let mut w = JsonWriter::new(buf);
   // Every item and tag is written with a trailing comma; `end_seq` turns the last one into the
@@ -801,7 +801,7 @@ mod test_routes_tests {
 #[cfg(test)]
 mod knob_tests {
   use super::knobs::{Data, H3Knobs, Headers};
-  use rimu_ws::{
+  use nyseion_ws::{
     executor::UdpParams,
     http3::H3Params,
     quic::{QuicLimits, QuicParams},
@@ -949,7 +949,7 @@ mod knob_tests {
 #[cfg(test)]
 mod tests {
   use super::{DatasetItem, write_json};
-  use rimu_ws::{
+  use nyseion_ws::{
     collections::{ArrayVectorU8, VectorUsize},
     misc::Wrapper,
   };
@@ -1043,7 +1043,7 @@ mod tests {
   #[serde(bound = "E: serde::Serialize")]
   struct JsonResponse<E, I>
   where
-    I: Iterator<Item = rimu_ws::Result<E>>,
+    I: Iterator<Item = nyseion_ws::Result<E>>,
     E: serde::Serialize,
   {
     items: Wrapper<core::cell::RefCell<I>>,

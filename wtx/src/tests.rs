@@ -1,14 +1,14 @@
 use crate::net::UriString;
 use alloc::string::String;
 use std::sync::OnceLock;
-use rimu_ws::misc::EnvVars;
+use nyseion_ws::misc::EnvVars;
 
 pub(crate) static _PUBLIC_KEY: &[u8] = include_bytes!("../../.certs/cert.pem");
 pub(crate) static _SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 pub(crate) static _ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
 #[allow(unused, reason = "depends on feature")]
-#[derive(Debug, rimu_ws::FromVars)]
+#[derive(Debug, nyseion_ws::FromVars)]
 pub(crate) struct Vars {
   pub(crate) wtx_database_uri_postgres: String,
 }

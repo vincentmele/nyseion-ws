@@ -30,7 +30,7 @@ pub trait Rng: Sized {
   /// can pass any value of the desired category, such as the one returned by `T::default()`.
   ///
   /// ```rust
-  /// use rimu_ws::{
+  /// use nyseion_ws::{
   ///   misc::AsciiAlphabetic,
   ///   rng::{Rng, Xorshift64},
   /// };

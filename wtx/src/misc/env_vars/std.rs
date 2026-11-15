@@ -27,13 +27,13 @@ where
   ///   fetched from `HashiCorp` Vault.
   ///
   /// ```ignore
-  /// use rimu_ws::{
+  /// use nyseion_ws::{
   ///   collection::VectorUsize,
   ///   misc::{EnvVars, SecretStr},
   ///   rng::{ChaCha20, CryptoSeedableRng},
   /// };
   ///
-  /// #[derive(rimu_ws::FromVars)]
+  /// #[derive(nyseion_ws::FromVars)]
   /// struct Vars {
   ///   database_uri: SecretStr,
   ///   root_ca: String,

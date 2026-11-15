@@ -1,6 +1,6 @@
 //! h2load target: the HTTP/2 server framework on io_uring, port 9000, permissive limits.
 
-use rimu_ws::{
+use nyseion_ws::{
   executor::UringExecutor,
   http::{
     HttpRecvParams,
@@ -10,9 +10,9 @@ use rimu_ws::{
   tls::TlsConfig,
 };
 
-fn main() -> rimu_ws::Result<()> {
-  let router = HttpRouter::paths(rimu_ws::paths!(("/", get(root)),))?;
-  Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+fn main() -> nyseion_ws::Result<()> {
+  let router = HttpRouter::paths(nyseion_ws::paths!(("/", get(root)),))?;
+  Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     TlsConfig::plaintext(),
@@ -21,6 +21,6 @@ fn main() -> rimu_ws::Result<()> {
   .run_in_threads("127.0.0.1:9000", router)
 }
 
-async fn root() -> rimu_ws::Result<()> {
+async fn root() -> nyseion_ws::Result<()> {
   Ok(())
 }

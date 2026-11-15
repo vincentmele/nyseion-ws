@@ -1126,11 +1126,11 @@ mod tests {
       (StatusCode::NotFound, &[], &[(b":status", b"404")]),
       (
         StatusCode::Ok,
-        &[("Server", "rimu"), ("content-type", "text/plain"), ("content-type", "x/y")],
+        &[("Server", "nyseion"), ("content-type", "text/plain"), ("content-type", "x/y")],
         &[
           (b":status", b"200"),
           (b"content-type", b"text/plain"),
-          (b"server", b"rimu"),
+          (b"server", b"nyseion"),
           (b"content-type", b"x/y"),
         ],
       ),
@@ -1169,7 +1169,7 @@ mod tests {
       for (content_type, length, with_date) in
         [("text/plain", Some(17), true), (long.as_str(), Some(5), false), ("a/b", None, true)]
       {
-        let fields = headers(&[("content-type", content_type), ("server", "rimu")]);
+        let fields = headers(&[("content-type", content_type), ("server", "nyseion")]);
         let date_line = with_date.then_some(date.as_slice());
         let section = head.encode(StatusCode::Ok, &fields, length, date_line).unwrap().to_vec();
         let mut expected = VectorUsize::new();
@@ -1182,7 +1182,7 @@ mod tests {
         if let Some(elem) = &length_text {
           lines.push((b"content-length", elem.as_bytes()));
         }
-        lines.push((b"server", b"rimu"));
+        lines.push((b"server", b"nyseion"));
         encode_static(&lines, &mut expected).unwrap();
         assert_eq!(section, expected.as_slice(), "round {round} {content_type:.10}");
       }
