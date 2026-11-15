@@ -1,12 +1,12 @@
-# rimu-ws
+# nyseion-ws
 
-rimu-ws is a fork of [wtx](https://github.com/c410-f3r/wtx), by Caio Fernandes and the wtx contributors, taken at
-upstream commit `d22e17e0` (1 November 2026). rimu-ws is not affiliated with or endorsed by the wtx project; for wtx
+nyseion-ws is a fork of [wtx](https://github.com/c410-f3r/wtx), by Caio Fernandes and the wtx contributors, taken at
+upstream commit `d22e17e0` (1 November 2026). nyseion-ws is not affiliated with or endorsed by the wtx project; for wtx
 itself — its protocol list, crypto backends and features — see the
 [upstream README](https://github.com/c410-f3r/wtx#readme). This fork's changes were developed with AI assistance.
 
-Like wtx, rimu-ws is licensed under the [Mozilla Public License 2.0](LICENSE), except [`rimu-ws-soak`](rimu-ws-soak),
-which is licensed under [Apache-2.0](rimu-ws-soak/LICENSE). See [NOTICE](NOTICE) for the details.
+Like wtx, nyseion-ws is licensed under the [Mozilla Public License 2.0](LICENSE), except [`nyseion-ws-soak`](nyseion-ws-soak),
+which is licensed under [Apache-2.0](nyseion-ws-soak/LICENSE). See [NOTICE](NOTICE) for the details.
 
 ## What the fork changed, by HttpArena contest
 
@@ -84,5 +84,5 @@ Result: first on baseline (898 K req/s, +6.6 % over viltrum), ahead on json-tls 
   (§5.12).
 
 Result: on EC2, first on static-h3 (1.035 M req/s, +24 % over fib) and 1.1 % behind zix on baseline-h3; on colossus,
-the top composite (rimu 2000, cnetmod 1851, fib 1818, zix 1712, plod 1546, aegon 1506), first among the experimental
+the top composite (nyseion 2000, cnetmod 1851, fib 1818, zix 1712, plod 1546, aegon 1506), first among the experimental
 entries on both profiles.

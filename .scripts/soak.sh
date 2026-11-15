@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Builds a soak server and rimu-ws-soak, starts the server on CPUs 0-5,12-17 and runs the harness
+# Builds a soak server and nyseion-ws-soak, starts the server on CPUs 0-5,12-17 and runs the harness
 # on 6-11,18-23. Exits with the harness's code.
 #
 #   soak.sh [soak] ARGS...  the harness with ARGS (the default mode)
@@ -58,8 +58,8 @@ if [[ $mode == h3 ]]; then
 			exit 1
 		fi
 	done
-	cargo build -q --release -p rimu-ws-internal --bin soak-server-h3 --features soak-server-h3
-	cargo build -q --release -p rimu-ws-soak
+	cargo build -q --release -p nyseion-ws-internal --bin soak-server-h3 --features soak-server-h3
+	cargo build -q --release -p nyseion-ws-soak
 	mkdir -p /mnt/nvme1tb/claude-tmp/soak
 	rel=${CARGO_TARGET_DIR:-./target}/release
 	srv=$rel/soak-server-h3
@@ -102,7 +102,7 @@ if [[ $mode == h3 ]]; then
 	*) dur_s=$duration ;;
 	esac
 	cap_s=$((dur_s + 300))
-	timeout "${cap_s}s" "$rel/rimu-ws-soak" h3 \
+	timeout "${cap_s}s" "$rel/nyseion-ws-soak" h3 \
 		--url "https://127.0.0.1:$main_port" --pid "$main_pid" \
 		--idle-url "https://127.0.0.1:$idle_port" --idle-pid "$idle_pid" \
 		--duration "$duration" "$@"
@@ -134,8 +134,8 @@ h2)
 	exit 3
 	;;
 esac
-cargo build -q --release -p rimu-ws-internal --bin "soak-server-$server_name" --features "soak-server-$server_name"
-cargo build -q --release -p rimu-ws-soak
+cargo build -q --release -p nyseion-ws-internal --bin "soak-server-$server_name" --features "soak-server-$server_name"
+cargo build -q --release -p nyseion-ws-soak
 mkdir -p /mnt/nvme1tb/claude-tmp/soak
 if ss -ltn | grep -q ":$port "; then
 	echo "port $port is busy" >&2
@@ -191,6 +191,6 @@ for _ in $(seq 100); do
 	sleep 0.1
 done
 set +e
-taskset -c 6-11,18-23 ./target/release/rimu-ws-soak run --url "$url" "${proto_args[@]}" --pid "$pid" "${harness_args[@]}" "$@"
+taskset -c 6-11,18-23 ./target/release/nyseion-ws-soak run --url "$url" "${proto_args[@]}" --pid "$pid" "${harness_args[@]}" "$@"
 rc=$?
 exit $rc

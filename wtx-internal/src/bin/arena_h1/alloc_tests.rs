@@ -22,7 +22,7 @@ use core::{
   cell::Cell,
   sync::atomic::Ordering,
 };
-use rimu_ws::{
+use nyseion_ws::{
   executor::StdRuntime,
   net::{StreamReader as _, StreamWriter as _},
   sync::{AtomicBool, AtomicU64},
@@ -138,7 +138,7 @@ fn free_addr() -> String {
 }
 
 /// The arena runtime, with this thread's allocations counted in `counts`.
-fn counted_runtime(counts: &'static Counts) -> impl Clone + Fn() -> rimu_ws::Result<UringRuntime> {
+fn counted_runtime(counts: &'static Counts) -> impl Clone + Fn() -> nyseion_ws::Result<UringRuntime> {
   move || {
     COUNTS.set(Some(counts));
     runtime()
@@ -340,7 +340,7 @@ fn measure_plain(cases: &[Case], warm: usize, measured: usize) -> Measured {
 fn measure_tls(cases: &[Case], warm: usize, measured: usize) -> Option<Measured> {
   let counts = Counts::leak();
   let addr = tls_server(counts)?;
-  let uri = rimu_ws::net::UriString::new(format!("https://{addr}"));
+  let uri = nyseion_ws::net::UriString::new(format!("https://{addr}"));
   let rt = StdRuntime::new();
   let mut tls_stream = rt.block_on(async {
     let mut rng = ChaCha20::from_std_random().unwrap();
@@ -744,11 +744,11 @@ impl Owner {
   fn of_path(path: &str) -> Option<Self> {
     const OWNERS: [(&str, Owner); 7] = [
       ("ring::", Owner::Crypto),
-      ("rimu_ws::http1::", Owner::Core),
-      ("rimu_ws::http::http1_server_framework::conn_driver::", Owner::Driver),
-      ("rimu_ws::http::http1_server_framework::", Owner::Framework),
-      ("rimu_ws::executor::", Owner::Executor),
-      ("rimu_ws::tls::", Owner::Tls),
+      ("nyseion_ws::http1::", Owner::Core),
+      ("nyseion_ws::http::http1_server_framework::conn_driver::", Owner::Driver),
+      ("nyseion_ws::http::http1_server_framework::", Owner::Framework),
+      ("nyseion_ws::executor::", Owner::Executor),
+      ("nyseion_ws::tls::", Owner::Tls),
       ("arena_h1::", Owner::App),
     ];
     if path.starts_with("arena_h1::alloc_tests::") {
@@ -766,7 +766,7 @@ impl Owner {
       if idx.is_empty() || !idx.bytes().all(|el| el.is_ascii_digit()) {
         continue;
       }
-      // `<rimu_ws::tls::TlsStream<..> as ..>::read` is charged as `rimu_ws::tls::TlsStream`
+      // `<nyseion_ws::tls::TlsStream<..> as ..>::read` is charged as `nyseion_ws::tls::TlsStream`
       let name = name.trim_start_matches('<');
       let path = name.split(['<', ' ']).next().unwrap_or(name);
       let path = path.replace('>', "");
@@ -965,7 +965,7 @@ fn churn_plain_counted(cases: &[Case], neighbor: Neighbor, counted: bool) -> Chu
 fn churn_tls(cases: &[Case], neighbor: Neighbor) -> Option<Churn> {
   let counts = Counts::leak();
   let addr = tls_server(counts)?;
-  let uri = rimu_ws::net::UriString::new(format!("https://{addr}"));
+  let uri = nyseion_ws::net::UriString::new(format!("https://{addr}"));
   let mut config = TlsConfig::unverified();
   config
     .alpn_mut()

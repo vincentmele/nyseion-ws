@@ -4,7 +4,7 @@
 
 mod support;
 
-use rimu_ws_soak::{
+use nyseion_ws_soak::{
   conn::ConnOpts,
   cycle::{CycleConfig, Extended, RecordMode, run, trend_violation},
   monitor::Violation,
@@ -58,7 +58,7 @@ fn lines(out: &[u8], kind: &str) -> Vec<serde_json::Value> {
     .collect()
 }
 
-async fn run_with(cfg: CycleConfig) -> (rimu_ws_soak::cycle::Summary, Vec<u8>) {
+async fn run_with(cfg: CycleConfig) -> (nyseion_ws_soak::cycle::Summary, Vec<u8>) {
   let mut out = Vec::new();
   let summary = run(cfg, &mut out).await;
   (summary, out)
@@ -204,7 +204,7 @@ async fn stop_on_first_failure() {
 async fn burst_is_served_by_a_correct_server() {
   let addr = spawn_fake(Faults::default()).await;
   let ctx = config(addr, 0).run.ctx;
-  let found = rimu_ws_soak::burst::burst(&ctx, &[], 300, Duration::from_secs(5)).await;
+  let found = nyseion_ws_soak::burst::burst(&ctx, &[], 300, Duration::from_secs(5)).await;
   assert!(found.is_none(), "{found:?}");
 }
 
@@ -214,7 +214,7 @@ async fn burst_counts_connections_never_served() {
   let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
   let addr = listener.local_addr().unwrap();
   let ctx = config(addr, 0).run.ctx;
-  let found = rimu_ws_soak::burst::burst(&ctx, &[], 20, Duration::from_millis(500)).await;
+  let found = nyseion_ws_soak::burst::burst(&ctx, &[], 20, Duration::from_millis(500)).await;
   assert_eq!(found, Some(Violation::Burst { unserved: 20, n: 20 }));
   drop(listener);
 }

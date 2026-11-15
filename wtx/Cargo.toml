@@ -27,7 +27,7 @@ tracing = { default-features = false, optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-rimu-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
+nyseion-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
@@ -62,7 +62,7 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 
 [dev-dependencies]
 miniz_oxide = { default-features = false, features = ["with-alloc"], version = "0.8" }
-rimu-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
+nyseion-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]
 32-tuple-impls = []
@@ -148,7 +148,7 @@ json-writer = ["dep:zmij"]
 # A one-shot gzip encoder for small bodies (CRC32 from zlib-rs).
 gzip-encoder = ["zlib-rs"]
 libc = ["dep:libc"]
-macros = ["dep:rimu-ws-macros"]
+macros = ["dep:nyseion-ws-macros"]
 memchr = ["dep:memchr"]
 odf = ["quick-xml", "std", "zip"]
 optimizations = ["memchr", "simdutf8"]
@@ -176,7 +176,7 @@ sha3 = ["dep:sha3"]
 simdutf8 = ["dep:simdutf8"]
 smtp = []
 socket2 = ["dep:socket2", "socket2?/all", "std"]
-std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "rimu-ws-macros?/std", "zlib-rs?/std"]
+std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "nyseion-ws-macros?/std", "zlib-rs?/std"]
 tls = ["secret", "x509"]
 tokio = ["pin-project-lite", "dep:tokio", "tokio?/io-util", "tokio?/net", "tokio?/rt", "std", "tokio?/sync", "tokio?/time"]
 tracing = ["dep:tracing", "tracing?/attributes"]
@@ -185,7 +185,7 @@ tracing-tree = ["std", "dep:tracing-tree"]
 uuid = ["dep:uuid"]
 web-socket = ["crypto", "http", "httparse", "tls"]
 web-socket-server-framework = ["web-socket"]
-rimu-ws-macros = ["dep:rimu-ws-macros"]
+nyseion-ws-macros = ["dep:nyseion-ws-macros"]
 x509 = ["asn1", "crypto", "hashbrown"]
 zlib-rs = ["dep:zlib-rs", "zlib-rs?/rust-allocator"]
 
@@ -211,8 +211,8 @@ description = "A collection of different transport implementations and related t
 edition = "2024"
 keywords = ["api", "database", "http", "tls", "websocket"]
 license = "MPL-2.0"
-name = "rimu-ws"
-repository = "https://github.com/vincentmele/rimu-ws"
+name = "nyseion-ws"
+repository = "https://github.com/vincentmele/nyseion-ws"
 version = "0.52.1"
 
 [package.metadata.docs.rs]

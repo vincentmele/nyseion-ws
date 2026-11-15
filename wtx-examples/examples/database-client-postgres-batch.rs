@@ -1,10 +1,10 @@
 //! Sends multiple commands at once and awaits them.
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::ArrayVectorU8,
   database::{Record, Records},
   misc::into_rslt,
@@ -13,9 +13,9 @@ use rimu_ws::{
 const COMMANDS: &[&str] = &["SELECT 0 = $1", "SELECT 1 = $1", "SELECT 2 = $1"];
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = rimu_ws_examples::postgres_client(uri).await?;
+  let mut executor = nyseion_ws_examples::postgres_client(uri).await?;
   let mut batch = executor.batch();
   let mut idx: u32 = 0;
   let mut records = ArrayVectorU8::<_, { COMMANDS.len() }>::new();

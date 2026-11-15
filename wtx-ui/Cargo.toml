@@ -1,16 +1,16 @@
 [dependencies]
 clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.0" }
 tokio = { default-features = false, features = ["io-std", "io-util", "macros", "net", "rt-multi-thread"], version = "1.0" }
-rimu-ws = { default-features = false, features = ["ccadb", "crypto-ring", "tokio"], path = "../wtx", version = "0.52.1" }
+nyseion-ws = { default-features = false, features = ["ccadb", "crypto-ring", "tokio"], path = "../wtx", version = "0.52.1" }
 
 [features]
 default = []
-embed-migrations = ["clap", "tokio/fs", "rimu-ws/schema-manager", "rimu-ws/std"]
-http-client = ["clap", "rimu-ws/ccadb", "rimu-ws/http2-client-pool", "rimu-ws/_tracing-tree"]
-schema-manager = ["clap", "rimu-ws/postgres", "rimu-ws/schema-manager", "rimu-ws/std"]
-schema-manager-dev = ["schema-manager", "rimu-ws/_tracing-tree", "rimu-ws/schema-manager-dev"]
+embed-migrations = ["clap", "tokio/fs", "nyseion-ws/schema-manager", "nyseion-ws/std"]
+http-client = ["clap", "nyseion-ws/ccadb", "nyseion-ws/http2-client-pool", "nyseion-ws/_tracing-tree"]
+schema-manager = ["clap", "nyseion-ws/postgres", "nyseion-ws/schema-manager", "nyseion-ws/std"]
+schema-manager-dev = ["schema-manager", "nyseion-ws/_tracing-tree", "nyseion-ws/schema-manager-dev"]
 unified = []
-web-socket = ["clap", "rimu-ws/web-socket"]
+web-socket = ["clap", "nyseion-ws/web-socket"]
 
 _curl = []
 
@@ -21,8 +21,8 @@ description = "Different user interfaces for WTX"
 edition = "2024"
 keywords = ["io", "network", "websocket"]
 license = "MPL-2.0"
-name = "rimu-ws-ui"
-repository = "https://github.com/vincentmele/rimu-ws"
+name = "nyseion-ws-ui"
+repository = "https://github.com/vincentmele/nyseion-ws"
 version = "0.8.3"
 
 [package.metadata.docs.rs]

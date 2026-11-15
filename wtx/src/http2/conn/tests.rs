@@ -419,7 +419,7 @@ fn sized_response(conn: &mut Http2Conn<false>, stream: u32, len: usize) -> Vec<u
   let _ = events(conn);
   let mut msg = MsgBufferString::default();
   msg.headers.push_from_iter(Header::from_name_and_value("content-type", ["text/plain"])).unwrap();
-  msg.headers.push_from_iter(Header::from_name_and_value("server", ["rimu-ws"])).unwrap();
+  msg.headers.push_from_iter(Header::from_name_and_value("server", ["nyseion-ws"])).unwrap();
   msg.body.extend_from_copyable_slice(&vec![b'2'; len]).unwrap();
   conn.send_response(U31::from_u32(stream), StatusCode::Ok, &mut msg).unwrap();
   let frames = take_frames(conn);
@@ -493,7 +493,7 @@ fn conn_header_cache_invalid_after_table_size_change() {
   for block in &blocks {
     let fields = decode_block(&mut dec, block);
     assert!(fields.contains(&(":status".into(), "200".into())), "{fields:?}");
-    assert!(fields.contains(&("server".into(), "rimu-ws".into())), "{fields:?}");
+    assert!(fields.contains(&("server".into(), "nyseion-ws".into())), "{fields:?}");
   }
 }
 

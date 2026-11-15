@@ -1,6 +1,6 @@
 //! `#[pkg::aux]` accepts bounds
 
-rimu_ws::create_packages_aux_wrapper!();
+nyseion_ws::create_packages_aux_wrapper!();
 
 type Api = ();
 
@@ -11,7 +11,7 @@ impl GenericApi for &mut Api {}
 impl GenericApi for Api {}
 impl GenericApi for Box<Api> {}
 
-#[rimu_ws::pkg(data_format(json), id(super::Api), transport(http))]
+#[nyseion_ws::pkg(data_format(json), id(super::Api), transport(http))]
 mod pkg {
   #[pkg::aux]
   impl<A> super::PkgsAux<A, (), ()>

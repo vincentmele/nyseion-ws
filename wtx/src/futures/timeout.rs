@@ -51,7 +51,7 @@ mod tests {
   use crate::futures::{Sleep, Timeout};
   use core::{pin::pin, time::Duration};
 
-  #[rimu_ws::test]
+  #[nyseion_ws::test]
   async fn timeout() {
     assert_eq!(
       Timeout::new(pin!(async { 1 }), Duration::from_millis(10)).unwrap().await.unwrap(),

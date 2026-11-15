@@ -4,7 +4,7 @@
 #
 #   h2-bench.sh SERVER PROFILE CONNS
 #
-#   SERVER   rimu (the native arena-h2 binary) or plod | viltrum | aegon (docker images
+#   SERVER   nyseion (the native arena-h2 binary) or plod | viltrum | aegon (docker images
 #            httparena-<name>, built from HttpArena's frameworks/<name>)
 #   PROFILE  baseline-h2 | static-h2 | baseline-h2c | json-h2c
 #   CONNS    h2load -c
@@ -103,7 +103,7 @@ trap cleanup EXIT
 # As HttpArena does: thousands of connections need more than the default 1024 descriptors.
 ulimit -n "$(ulimit -Hn)"
 
-if [ "$server" = rimu ]; then
+if [ "$server" = nyseion ]; then
 	CERT_DIR=$arena/certs DATASET_PATH=$arena/data/dataset.json STATIC_DIR=$arena/data/static \
 		taskset -c $server_cpus "$bin" >"$work/server-$server.log" 2>&1 &
 	server_pid=$!

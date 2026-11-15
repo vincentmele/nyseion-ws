@@ -1,6 +1,6 @@
 mod support;
 
-use rimu_ws_soak::{
+use nyseion_ws_soak::{
   codec::client_frame,
   conn::{Conn, ConnError, ConnOpts, Next},
   rng::{rng, seed_for},

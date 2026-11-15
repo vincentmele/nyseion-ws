@@ -1,8 +1,8 @@
-#[rimu_ws::pkg]
+#[nyseion_ws::pkg]
 mod a {
 }
 
-#[rimu_ws::pkg]
+#[nyseion_ws::pkg]
 mod b {
   #[pkg::req_data]
   struct Req(
@@ -10,7 +10,7 @@ mod b {
   );
 }
 
-#[rimu_ws::pkg]
+#[nyseion_ws::pkg]
 mod c {
   #[pkg::res_data]
   struct Res;

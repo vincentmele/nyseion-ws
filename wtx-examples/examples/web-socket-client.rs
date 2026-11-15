@@ -1,20 +1,20 @@
 //! WebSocket client that reads and writes frames in the same task.
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   net::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsConfig, TlsConnectorBuilder},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
-use rimu_ws_examples::{ROOT_CA, uri_from_args};
+use nyseion_ws_examples::{ROOT_CA, uri_from_args};
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = Uri::new(uri_from_args());
   let tls_connector = TlsConnectorBuilder::tokio(uri)
     .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_std_random()?)

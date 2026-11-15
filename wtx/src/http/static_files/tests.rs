@@ -30,7 +30,7 @@ impl Reply {
 /// A fresh directory for one test: `<tmp>/<name>/root` is served, `<tmp>/<name>` holds files
 /// a traversal would reach.
 fn dirs(name: &str) -> (PathBuf, PathBuf) {
-  let base = std::env::temp_dir().join(format!("rimu-static-{name}-{}", std::process::id()));
+  let base = std::env::temp_dir().join(format!("nyseion-static-{name}-{}", std::process::id()));
   let _rslt = fs::remove_dir_all(&base);
   let root = base.join("root");
   fs::create_dir_all(&root).unwrap();

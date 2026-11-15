@@ -358,7 +358,7 @@ mod serde {
 mod tests {
   use crate::sync::{Arc, AtomicUsize};
   use core::sync::atomic::Ordering;
-  use rimu_ws::collections::ArrayVector;
+  use nyseion_ws::collections::ArrayVector;
 
   #[test]
   fn into_iter_drop() {

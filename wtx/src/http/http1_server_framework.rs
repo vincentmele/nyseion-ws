@@ -1000,7 +1000,7 @@ mod tests {
         .set_local_runtimes(core::num::NonZeroUsize::new(1))
         .set_max_connections(None)
         .set_max_delay(Duration::from_secs(10))
-        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("rimu-ws")))
+        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("nyseion-ws")))
     });
     addr
   }
@@ -1023,7 +1023,7 @@ mod tests {
         .set_local_runtimes(core::num::NonZeroUsize::new(1))
         .set_max_connections(max_connections)
         .set_max_delay(max_delay)
-        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("rimu-ws")))
+        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("nyseion-ws")))
     });
     addr
   }
@@ -1178,11 +1178,11 @@ mod tests {
     };
     let (head, body) = ask("GET /item/42?x=1 HTTP/1.1\r\nHost: x\r\n\r\n");
     assert_eq!(body, b"42");
-    assert!(head.contains("server: rimu-ws\r\n"), "{head}");
+    assert!(head.contains("server: nyseion-ws\r\n"), "{head}");
     assert!(ask("GET /nowhere HTTP/1.1\r\nHost: x\r\n\r\n").0.starts_with("http/1.1 404 "));
     let (head, _) = ask("POST /ping HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n");
     assert!(head.starts_with("http/1.1 405 "), "{head}");
-    assert!(head.contains("server: rimu-ws\r\n"), "{head}");
+    assert!(head.contains("server: nyseion-ws\r\n"), "{head}");
     // A failing handler is a 500 and the connection lives on
     assert!(ask("GET /boom HTTP/1.1\r\nHost: x\r\n\r\n").0.starts_with("http/1.1 500 "));
     let (head, _) = ask("GET /teapot HTTP/1.1\r\nHost: x\r\n\r\n");
@@ -1303,7 +1303,7 @@ mod tests {
       .unwrap()
       .set_local_runtime_cb(|| UringRuntime::with_params(UringParams::new()))
       .set_local_runtimes(core::num::NonZeroUsize::new(1))
-      .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("rimu-ws")))
+      .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("nyseion-ws")))
     });
     let (head, body) = StdRuntime::new().block_on(async move {
       let mut rng = ChaCha20::from_std_random().unwrap();
@@ -1336,7 +1336,7 @@ mod tests {
       (String::from_utf8(got[..at].to_vec()).unwrap().to_ascii_lowercase(), got[at + 4..].to_vec())
     });
     assert!(head.starts_with("http/1.1 200 ok\r\n"), "{head}");
-    assert!(head.contains("server: rimu-ws"), "{head}");
+    assert!(head.contains("server: nyseion-ws"), "{head}");
     assert_eq!(body, b"pong");
   }
 
@@ -2224,7 +2224,7 @@ mod tests {
           UringRuntime::with_params(UringParams::new())
         })
         .set_local_runtimes(core::num::NonZeroUsize::new(1))
-        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("rimu-ws")))
+        .run_in_threads(&server_addr, router().set_middleware(Http1ServerHeader("nyseion-ws")))
     });
     let mut stream = connect(&addr);
     let mut echo =
@@ -2239,7 +2239,7 @@ mod tests {
       for (req, len) in reqs {
         stream.write_all(req).unwrap();
         let (head, body) = read_response(stream);
-        assert!(head.contains("server: rimu-ws"), "{head}");
+        assert!(head.contains("server: nyseion-ws"), "{head}");
         assert_eq!(body.len(), len);
       }
     };

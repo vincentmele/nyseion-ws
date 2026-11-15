@@ -1,6 +1,6 @@
 mod support;
 
-use rimu_ws_soak::{
+use nyseion_ws_soak::{
   conn::ConnOpts,
   rng::rng,
   scenario::{Proto, Ctx, Limits, Outcome, Scenario, run, slack},

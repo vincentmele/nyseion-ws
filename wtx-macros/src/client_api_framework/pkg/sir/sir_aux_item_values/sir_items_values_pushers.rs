@@ -89,7 +89,7 @@ impl SirAuxItemValues {
         pub fn #fn_ident<#(#fresdiv_params_iter0,)*>(self) -> #pkg_ident<
           #(#fpiv_params_iter,)*
           #(#fresdiv_params_iter1,)*
-          rimu_ws::codec::protocol::#wrapper_ident<#freqdiv_ident<#freqdiv_params>>
+          nyseion_ws::codec::protocol::#wrapper_ident<#freqdiv_ident<#freqdiv_params>>
         >
         where
           #(#fresdiv_where_predicates_iter,)*

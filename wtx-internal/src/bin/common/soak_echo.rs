@@ -8,7 +8,7 @@
 //! (default 1048576) is the largest message. `WTX_LOG_ERRORS=1` prints connection errors, which
 //! hostile clients cause by the thousand.
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   net::{Stream, TcpParams},
   tls::PlaintextCtx,
@@ -68,7 +68,7 @@ pub(crate) fn tcp_params() -> TcpParams {
 pub(crate) async fn echo<NC, S>(
   mut buffer: VectorUsize<u8>,
   mut ws: WebSocket<NC, S, PlaintextCtx, false>,
-) -> rimu_ws::Result<()>
+) -> nyseion_ws::Result<()>
 where
   NC: NegotiatedWsCompression,
   S: Stream,

@@ -3,7 +3,7 @@
 #![no_main]
 
 use core::ops::Range;
-use rimu_ws::{
+use nyseion_ws::{
   codec::{Decode, DecodeWrapper, Pem},
   collections::VectorUsize,
 };

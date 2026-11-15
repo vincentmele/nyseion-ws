@@ -1,6 +1,6 @@
 mod support;
 
-use rimu_ws_soak::{
+use nyseion_ws_soak::{
   conn::ConnOpts,
   cycle::{CycleConfig, Verdict, latency_verdict, run},
   probe::{ProbeStats, lag_exceeds},
@@ -42,7 +42,7 @@ fn cfg(addr: SocketAddr, pid: u32) -> CycleConfig {
     probes: 2,
     probe_rate: 50,
     fd_flood: None,
-    ext: rimu_ws_soak::cycle::Extended::default(),
+    ext: nyseion_ws_soak::cycle::Extended::default(),
   }
 }
 
@@ -85,7 +85,7 @@ async fn server_gone_is_one_loud_violation() {
   });
   let summary = run(cfg(addr, pid), &mut Vec::new()).await;
   killer.await.unwrap();
-  assert_eq!(summary.violations, [rimu_ws_soak::monitor::Violation::PidGone], "{summary:?}");
+  assert_eq!(summary.violations, [nyseion_ws_soak::monitor::Violation::PidGone], "{summary:?}");
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn saturated_probe_lag_skips_latency() {
 
 #[test]
 fn fd_flood_detects_busy_spin() {
-  use rimu_ws_soak::{fdflood::busy_verdict, monitor::Violation};
+  use nyseion_ws_soak::{fdflood::busy_verdict, monitor::Violation};
   assert_eq!(
     busy_verdict(50, Duration::from_secs(1), 100),
     Some(Violation::Busy { cpu_pct: 50.0 })
@@ -129,7 +129,7 @@ fn probe_failures_break_the_latency_invariant() {
 
 #[test]
 fn every_cycle_draws_new_inputs() {
-  use rimu_ws_soak::cycle::cycle_seed;
+  use nyseion_ws_soak::cycle::cycle_seed;
   assert_eq!(cycle_seed(7, 0), 7);
   assert_ne!(cycle_seed(7, 1), 7);
   assert_ne!(cycle_seed(7, 1), cycle_seed(7, 2));
@@ -139,7 +139,7 @@ fn every_cycle_draws_new_inputs() {
 // not the harness's: lag counts only the timer's lateness.
 #[tokio::test(flavor = "multi_thread")]
 async fn slow_echoes_are_latency_not_saturation() {
-  use rimu_ws_soak::probe::Probes;
+  use nyseion_ws_soak::probe::Probes;
   let faults = Faults { echo_delay: Some(Duration::from_millis(25)), ..Faults::default() };
   let addr = spawn_fake(faults).await;
   let ctx = cfg(addr, 0).run.ctx;
@@ -161,7 +161,7 @@ async fn server_gone_is_reported_once_while_slots_wind_down() {
   let mut child = stand_in();
   let mut cfg = cfg(addr, child.id());
   // Each idle_post run waits out the idle timeout, so the slots wind down for seconds.
-  cfg.run.weights = rimu_ws_soak::scenario::parse_weights("idle_post=1").unwrap();
+  cfg.run.weights = nyseion_ws_soak::scenario::parse_weights("idle_post=1").unwrap();
   cfg.run.ctx.limits.idle = Duration::from_secs(2);
   let killer = tokio::spawn(async move {
     tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -170,12 +170,12 @@ async fn server_gone_is_reported_once_while_slots_wind_down() {
   });
   let summary = run(cfg, &mut Vec::new()).await;
   killer.await.unwrap();
-  assert_eq!(summary.violations, [rimu_ws_soak::monitor::Violation::PidGone], "{summary:?}");
+  assert_eq!(summary.violations, [nyseion_ws_soak::monitor::Violation::PidGone], "{summary:?}");
 }
 
 #[test]
 fn failures_in_saturated_seconds_are_marked() {
-  use rimu_ws_soak::{cycle::fail_line, runner::Record, scenario::Scenario};
+  use nyseion_ws_soak::{cycle::fail_line, runner::Record, scenario::Scenario};
   let record = Record {
     slot: 1,
     generation: 2,

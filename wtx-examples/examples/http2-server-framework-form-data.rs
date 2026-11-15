@@ -1,6 +1,6 @@
 //! Browsers usually send `form-data` content when dealing with files.
 
-use rimu_ws::{
+use nyseion_ws::{
   executor::UringExecutor,
   http::http2_server_framework::{
     CorsMiddleware, FormData, FormDataIter, Http2ServerFramework, HttpRouter, State, post,
@@ -8,13 +8,13 @@ use rimu_ws::{
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::TlsConfig,
 };
-use rimu_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
+use nyseion_ws_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let rng = ChaCha20::from_std_random()?;
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router =
-    HttpRouter::new(rimu_ws::paths!(("/form_data", post(form_data))), CorsMiddleware::permissive())?;
+    HttpRouter::new(nyseion_ws::paths!(("/form_data", post(form_data))), CorsMiddleware::permissive())?;
   Http2ServerFramework::new(UringExecutor::default(), rng, tls_config)?
     .set_error_cb(|err| eprintln!("Error: {err}"))
     .run_in_threads(&host_from_args(), router)
@@ -23,7 +23,7 @@ fn main() -> rimu_ws::Result<()> {
 async fn form_data(
   State { req, data: _ }: State<'_, ()>,
   FormData(delimiter): FormData,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   for block_rslt in FormDataIter::new(&req.msg_data.body, &delimiter)? {
     println!("{:?}", block_rslt?);
   }

@@ -1,4 +1,4 @@
-use rimu_ws_soak::monitor::{
+use nyseion_ws_soak::monitor::{
   Baseline, Budgets, Monitor, MonitorError, Sample, TcpStates, Violation, check_drained,
   check_running, parse_status, parse_tcp_table,
 };

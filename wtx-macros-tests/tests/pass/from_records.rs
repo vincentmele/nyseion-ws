@@ -1,6 +1,6 @@
-use rimu_ws::database::client::postgres::Postgres;
+use nyseion_ws::database::client::postgres::Postgres;
 
-#[derive(rimu_ws::FromRecords)]
+#[derive(nyseion_ws::FromRecords)]
 #[from_records(Postgres<E>, bound = "E: Default", modifier = foo::modifier)]
 pub struct Foo {
   pub a: i32,

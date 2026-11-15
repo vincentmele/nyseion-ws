@@ -3,8 +3,8 @@
 //! headers, packet-number spaces, CRYPTO reassembly, the ACK writer, transport-parameter encoding
 //! and every frame encoder. rustls supplies only the handshake bytes and the per-level packet and
 //! header-protection keys ([`rustls::quic::Keys`]); the packet framing, the frames the floods
-//! inject, and the close-code parsing are the harness's own, so a bug the harness and rimu-ws share
-//! could not hide (ruling T23-b). rustls is not rimu-ws's TLS stack, so independence holds.
+//! inject, and the close-code parsing are the harness's own, so a bug the harness and nyseion-ws share
+//! could not hide (ruling T23-b). rustls is not nyseion-ws's TLS stack, so independence holds.
 //!
 //! It exists for what `quinn` will not send: a conforming client emits no PING, PATH_CHALLENGE,
 //! NEW_CONNECTION_ID or RETIRE_CONNECTION_ID flood, no empty 1-RTT packet, no out-of-order STREAM

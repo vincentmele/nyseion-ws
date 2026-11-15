@@ -1,12 +1,12 @@
 //! WebSocket autobahn client.
 
 use core::pin::pin;
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   futures::PollOnce,
   web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
-use rimu_ws_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
+use nyseion_ws_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
 #[tokio::main]
 async fn main() {

@@ -7,10 +7,10 @@
 //! `wtx-socket-client-concurrent` is an example that uses a mutex.
 
 extern crate tokio;
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
 use tokio::sync::mpsc::unbounded_channel;
-use rimu_ws::{
+use nyseion_ws::{
   collections::ArrayVectorCopy,
   misc::process_utf8_stream,
   net::{Stream, StreamReader, StreamWriter, Uri},
@@ -19,7 +19,7 @@ use rimu_ws::{
 };
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let domain = Uri::new("github.com:443");
   let tls_connector = TlsConnectorBuilder::tokio(domain)
     .build(TlsConfig::from_ccadb()?, ChaCha20::from_std_random()?)
@@ -40,7 +40,7 @@ async fn main() -> rimu_ws::Result<()> {
       }
     }
     stream_reader.send_close_notify()?;
-    rimu_ws::Result::Ok(())
+    nyseion_ws::Result::Ok(())
   };
 
   let writer_fut = async {
@@ -64,7 +64,7 @@ async fn main() -> rimu_ws::Result<()> {
         }
       }
     }
-    rimu_ws::Result::Ok(())
+    nyseion_ws::Result::Ok(())
   };
 
   let (reader_rslt, writer_rslt) = tokio::join!(reader_fut, writer_fut);

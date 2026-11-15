@@ -1,9 +1,9 @@
 //! Fetches an URI using low-level HTTP/2 resources.
 
 extern crate tokio;
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   http::{HttpClient, HttpRecvParams, ReqBuilder},
   http2::{Http2, Http2Buffer, Http2ErrorCode},
@@ -14,7 +14,7 @@ use rimu_ws::{
 };
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = Uri::new("https://github.com/c410-f3r/wtx");
   let mut rng = ChaCha20::from_std_random()?;
   let hb = Http2Buffer::new(&mut rng);

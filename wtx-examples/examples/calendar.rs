@@ -1,10 +1,10 @@
 //! Basic time operation.
 
-extern crate rimu_ws;
+extern crate nyseion_ws;
 
-use rimu_ws::calendar::{Datetime, IDuration};
+use nyseion_ws::calendar::{Datetime, IDuration};
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   println!(
     "ISO 8601 representation of the next 2 minutes in UTC: {}",
     Datetime::now()?.add(IDuration::from_minutes(2)?)?

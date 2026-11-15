@@ -7,7 +7,7 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::{ArrayVectorCopy, VectorUsize},
   executor::UringExecutor,
   futures::FnFut as _,
@@ -23,19 +23,19 @@ use rimu_ws::{
 const PUBLIC_KEY: &[u8] = include_bytes!("../../../.certs/cert.pem");
 const SECRET_KEY: &[u8] = include_bytes!("../../../.certs/key.pem");
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let tls = std::env::var("H2SPEC_TLS").ok().filter(|el| el == "1" || el == "user");
   macro_rules! run {
     ($tls_config:expr) => {
-      Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+      Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
         UringExecutor::default(),
         ChaCha20::from_std_random()?,
         $tls_config,
       )?
-      .set_error_cb((|err: rimu_ws::Error| eprintln!("{err}")) as fn(rimu_ws::Error))
+      .set_error_cb((|err: nyseion_ws::Error| eprintln!("{err}")) as fn(nyseion_ws::Error))
       .set_http_recv_params(HttpRecvParams::with_default_params())
       .set_local_runtimes(core::num::NonZeroUsize::new(1))
-      .run_in_threads("127.0.0.1:9000", HttpRouter::paths(rimu_ws::paths!(("/", AnyMethod(hello.into_wrapper()))))?)
+      .run_in_threads("127.0.0.1:9000", HttpRouter::paths(nyseion_ws::paths!(("/", AnyMethod(hello.into_wrapper()))))?)
     };
   }
   if let Some(mode) = tls {
@@ -47,7 +47,7 @@ fn main() -> rimu_ws::Result<()> {
   }
 }
 
-async fn hello(mut ms: ManualStream<(), ServerStream>) -> rimu_ws::Result<()> {
+async fn hello(mut ms: ManualStream<(), ServerStream>) -> nyseion_ws::Result<()> {
   let mut body = VectorUsize::new();
   loop {
     match ms.stream.recv_data(&mut body).await? {
@@ -66,7 +66,7 @@ struct AnyMethod<T>(T);
 
 impl<D, E, S, T> Endpoint<D, E, S> for AnyMethod<T>
 where
-  E: From<rimu_ws::Error>,
+  E: From<nyseion_ws::Error>,
   T: Endpoint<D, E, S>,
 {
   const OM: OperationMode = T::OM;
@@ -86,7 +86,7 @@ where
 
 impl<D, E, S, T> EndpointNode<D, E, S> for AnyMethod<T>
 where
-  E: From<rimu_ws::Error>,
+  E: From<nyseion_ws::Error>,
   T: Endpoint<D, E, S>,
 {
   const IS_ROUTER: bool = false;
@@ -95,7 +95,7 @@ where
     &self,
     _: ArrayVectorCopy<RouteMatch, 4>,
     _: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>,
-  ) -> rimu_ws::Result<()> {
+  ) -> nyseion_ws::Result<()> {
     Ok(())
   }
 }
