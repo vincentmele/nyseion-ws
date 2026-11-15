@@ -31,9 +31,9 @@ nyseion-ws-macros = { default-features = false, optional = true, path = "../wtx-
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
-nyseion-gzip = { default-features = false, optional = true, path = "../../nyseion-gzip/nyseion-gzip" }
-nyseion-http1 = { default-features = false, optional = true, path = "../../nyseion-http1" }
-nyseion-json = { default-features = false, optional = true, path = "../../nyseion-json/nyseion-json" }
+nyseion-gzip = { default-features = false, optional = true, git = "https://github.com/nyseion/nyseion-gzip" }
+nyseion-http1 = { default-features = false, optional = true, git = "https://github.com/nyseion/nyseion-http1" }
+nyseion-json = { default-features = false, optional = true, git = "https://github.com/nyseion/nyseion-json" }
 
 # Rust Crypto and its extravagant set of associated dependencies
 aead = { default-features = false, optional = true, version = "0.6" }

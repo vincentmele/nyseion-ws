@@ -950,7 +950,8 @@ mod tests {
     });
     assert_eq!(allocations, 0, "allocations of {counted} connections");
     for stream in &streams {
-      let answered = stream.output.windows(14).filter(|el| el == b"server: nyseion-w").count();
+      let needle: &[u8] = b"server: nyseion-w";
+      let answered = stream.output.windows(needle.len()).filter(|el| *el == needle).count();
       assert_eq!(answered, 5);
     }
   }
