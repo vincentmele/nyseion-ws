@@ -1,4 +1,4 @@
-//! The `rimu-ws-soak --proto h2` target: the HTTP/2 server framework on `UringExecutor`, plaintext,
+//! The `nyseion-ws-soak --proto h2` target: the HTTP/2 server framework on `UringExecutor`, plaintext,
 //! at `127.0.0.1:9081`, with the framework's default HTTP/2 settings.
 //!
 //! - `GET /baseline2` answers `ok`;
@@ -14,7 +14,7 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
-use rimu_ws::{
+use nyseion_ws::{
   executor::{UringExecutor, UringParams, UringRuntime},
   http::{
     MsgDataMut as _, StatusCode,
@@ -35,7 +35,7 @@ fn timeout(name: &str, default_ms: u64) -> Option<Duration> {
   Some(env(name, default_ms)).filter(|el| *el > 0).map(Duration::from_millis)
 }
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let dir = std::env::var("SOAK_STATIC_DIR")
     .unwrap_or_else(|_| "/mnt/nvme1tb/claude-tmp/soak/h2-static".into());
   std::fs::create_dir_all(&dir)?;
@@ -48,10 +48,10 @@ fn main() -> rimu_ws::Result<()> {
     .set_handshake_timeout(handshake)
     .set_idle_timeout(idle)
     .set_peer_addrs(false);
-  let error_cb: fn(rimu_ws::Error) =
+  let error_cb: fn(nyseion_ws::Error) =
     if env("WTX_LOG_ERRORS", 0) == 1 { |error| eprintln!("{error}") } else { |_| {} };
   eprintln!("soak-server-h2: handshake {handshake:?}, idle {idle:?}, static {dir}");
-  Http2ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _, _>::new(
+  Http2ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     TlsConfig::plaintext(),
@@ -62,7 +62,7 @@ fn main() -> rimu_ws::Result<()> {
   .set_local_runtime_cb(move || UringRuntime::with_params(params))
   .run_in_threads(
     "127.0.0.1:9081",
-    HttpRouter::paths(rimu_ws::paths!(
+    HttpRouter::paths(nyseion_ws::paths!(
       ("/baseline2", get(baseline2)),
       ("/echo", post(echo)),
       ("/static/{*file}", Get(StaticFiles::new(dir)?)),
@@ -75,14 +75,14 @@ fn static_bytes(len: usize) -> Vec<u8> {
   (0..len).map(|el| (el % 251) as u8).collect()
 }
 
-async fn baseline2(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn baseline2(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   state.req.msg_data.clear();
   state.req.msg_data.body.extend_from_copyable_slice(b"ok")?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
 /// The request body goes back as the response's.
-async fn echo(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn echo(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   state.req.msg_data.headers.clear();
   Ok(VerbatimParams(StatusCode::Ok))
 }

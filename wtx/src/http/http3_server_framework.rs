@@ -21,8 +21,8 @@ use crate::{
 };
 use alloc::vec::Vec;
 use core::{num::NonZeroUsize, sync::atomic::Ordering, time::Duration};
-use rimu_h3::H3Params;
-use rimu_quic::{QuicParams, rustls::RustlsConfig};
+use nyseion_h3::H3Params;
+use nyseion_quic::{QuicParams, rustls::RustlsConfig};
 
 /// The stream of the manual-mode endpoints of the routers of [`Http3ServerFramework`]. HTTP/3 has
 /// no manual mode: a request routed to a manual-mode endpoint is answered with 500 and the error
@@ -641,7 +641,7 @@ mod uring {
     sync::Arc,
   };
   use alloc::vec::Vec;
-  use rimu_quic::{EndpointKeys, WorkerLoads};
+  use nyseion_quic::{EndpointKeys, WorkerLoads};
 
   impl<DA, EC, ER, RC, RNG> Http3ServerFramework<DA, EC, UringExecutor, RC, RNG>
   where

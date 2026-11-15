@@ -1,13 +1,13 @@
 //! An HTTP/2 server framework showcasing nested routes, middlewares, manual streams, dynamic routes,
 //! PostgreSQL connections and JSON deserialization/serialization.
 
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 extern crate serde;
 extern crate serde_json;
 
 use core::{fmt::Write, ops::ControlFlow};
-use rimu_ws::{
+use nyseion_ws::{
   database::{DbClient, Record},
   executor::{Runtime as _, UringExecutor, UringParams, UringRuntime},
   http::{
@@ -24,11 +24,11 @@ use rimu_ws::{
   sync::Arc,
   tls::{TlsConfig, TrustedCtx},
 };
-use rimu_ws_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
+use nyseion_ws_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type LocalPool = SimplePool<PostgresRMDefault<rimu_ws::Error, UringExecutor, TrustedCtx>>;
+type LocalPool = SimplePool<PostgresRMDefault<nyseion_ws::Error, UringExecutor, TrustedCtx>>;
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let mut rng = ChaCha20::from_std_random()?;
   let db_pool = LocalPool::new(
     4,
@@ -40,13 +40,13 @@ fn main() -> rimu_ws::Result<()> {
     )?,
   );
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-  let router = HttpRouter::paths(rimu_ws::paths!(
+  let router = HttpRouter::paths(nyseion_ws::paths!(
     ("/db/{id}", get(db)),
     ("/json", json(Method::Post, deserialization_and_serialization)),
     (
       "/say",
       HttpRouter::new(
-        rimu_ws::paths!(("/hello", get(hello)), ("/world", get(world))),
+        nyseion_ws::paths!(("/hello", get(hello)), ("/world", get(world))),
         CustomMiddleware,
       )?,
     ),
@@ -66,7 +66,7 @@ fn main() -> rimu_ws::Result<()> {
 async fn db(
   StateClean { data, req }: StateClean<'_, LocalPool>,
   Path(id): Path<u32>,
-) -> rimu_ws::Result<VerbatimParams> {
+) -> nyseion_ws::Result<VerbatimParams> {
   let mut lock = data.get_with_unit().await?;
   let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
@@ -76,7 +76,7 @@ async fn db(
 
 async fn deserialization_and_serialization(
   State { req, data: _ }: State<'_, LocalPool>,
-) -> rimu_ws::Result<JsonReply> {
+) -> nyseion_ws::Result<JsonReply> {
   let deserialize_example: DeserializeExample = serde_json::from_slice(&req.msg_data.body)?;
   let serialize_example = SerializeExample {
     _baz: [u32::from(deserialize_example._bar / 2), u32::from(deserialize_example._bar % 2)],
@@ -90,7 +90,7 @@ async fn hello() -> &'static str {
   "hello"
 }
 
-async fn stream(mut manual_stream: ManualStream<LocalPool, ServerStream>) -> rimu_ws::Result<()> {
+async fn stream(mut manual_stream: ManualStream<LocalPool, ServerStream>) -> nyseion_ws::Result<()> {
   manual_stream.stream.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())
 }
@@ -101,7 +101,7 @@ async fn world() -> &'static str {
 
 struct CustomMiddleware;
 
-impl Middleware<LocalPool, rimu_ws::Error> for CustomMiddleware {
+impl Middleware<LocalPool, nyseion_ws::Error> for CustomMiddleware {
   type Aux = ();
 
   fn aux(&self) -> Self::Aux {}
@@ -111,7 +111,7 @@ impl Middleware<LocalPool, rimu_ws::Error> for CustomMiddleware {
     _: &mut LocalPool,
     _: &mut Self::Aux,
     _: &mut Request<MsgBufferString>,
-  ) -> rimu_ws::Result<ControlFlow<StatusCode, ()>> {
+  ) -> nyseion_ws::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting request");
     Ok(ControlFlow::Continue(()))
   }
@@ -121,7 +121,7 @@ impl Middleware<LocalPool, rimu_ws::Error> for CustomMiddleware {
     _: &mut LocalPool,
     _: &mut Self::Aux,
     _: Response<&mut MsgBufferString>,
-  ) -> rimu_ws::Result<ControlFlow<StatusCode, ()>> {
+  ) -> nyseion_ws::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting response");
     Ok(ControlFlow::Continue(()))
   }

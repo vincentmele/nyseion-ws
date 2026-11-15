@@ -39,13 +39,13 @@ pub(crate) fn db(
     #(#fn_attrs)*
     #[test]
     fn #fn_name() #fn_output {
-      use rimu_ws::executor::Runtime as _;
+      use nyseion_ws::executor::Runtime as _;
 
       #fn_asyncness fn #priv_fn_name(#fn_inputs) #fn_output {
         #fn_block
       }
 
-      rimu_ws::database::client::postgres::database_test(
+      nyseion_ws::database::client::postgres::database_test(
         #dir_ts,
         #tls_config_ts,
         #priv_fn_name
@@ -75,7 +75,7 @@ fn attrs_ts(attrs: proc_macro::TokenStream) -> crate::Result<[proc_macro2::Token
     if let Some(elem) = tls_config_ts {
       quote::quote!(#elem)
     } else {
-      quote::quote!(&rimu_ws::tls::TlsConfig::new(Default::default()).unwrap())
+      quote::quote!(&nyseion_ws::tls::TlsConfig::new(Default::default()).unwrap())
     },
   ])
 }

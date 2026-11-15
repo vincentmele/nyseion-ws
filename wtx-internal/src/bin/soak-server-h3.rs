@@ -1,4 +1,4 @@
-//! The `rimu-ws-soak h3` target: the HTTP/3 server framework on UDP, dual-stack, with the library's
+//! The `nyseion-ws-soak h3` target: the HTTP/3 server framework on UDP, dual-stack, with the library's
 //! default QUIC and HTTP/3 limits (the limits task 23 soaks). One process per server: the worker
 //! count is the CPUs the process is pinned to (`taskset -c 0-3` → 4 workers; `taskset -c 4` → 1), so
 //! the per-worker caps can be driven on a one-worker server.
@@ -29,7 +29,7 @@ use core::{
   cell::Cell,
   sync::atomic::{AtomicBool, Ordering},
 };
-use rimu_ws::{
+use nyseion_ws::{
   executor::{UringExecutor, UringParams, UringRuntime},
   http::{
     MsgDataMut as _, StatusCode,
@@ -110,7 +110,7 @@ fn env(name: &str, default: &str) -> String {
   std::env::var(name).unwrap_or_else(|_| default.into())
 }
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   if std::env::var("SOAK_H3_ALLOC_STATS").is_ok_and(|el| el == "1") {
     ALLOC_STATS.store(true, Ordering::Relaxed);
   }
@@ -123,7 +123,7 @@ fn main() -> rimu_ws::Result<()> {
   let cert = std::fs::read(format!("{cert_dir}/server.crt"))?;
   let key = std::fs::read(format!("{cert_dir}/server.key"))?;
   let log_errors = std::env::var("WTX_LOG_ERRORS").is_ok_and(|el| el == "1");
-  let error_cb: fn(rimu_ws::Error) =
+  let error_cb: fn(nyseion_ws::Error) =
     if log_errors { |error| eprintln!("soak-server-h3: {error}") } else { |_| {} };
   eprintln!(
     "soak-server-h3: {addr}, static {dir}, cert {cert_dir}, alloc_stats {}",
@@ -133,8 +133,8 @@ fn main() -> rimu_ws::Result<()> {
     .cert_chain_pem(&cert)
     .private_key_pem(&key)
     .build()
-    .map_err(|err| rimu_ws::Error::from(std::io::Error::other(err)))?;
-  let framework = Http3ServerFramework::<(), fn(rimu_ws::Error), UringExecutor, _, _>::new(
+    .map_err(|err| nyseion_ws::Error::from(std::io::Error::other(err)))?;
+  let framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
     tls,
@@ -147,7 +147,7 @@ fn main() -> rimu_ws::Result<()> {
   let _ = STATS.set(framework.stats());
   framework.run_in_threads(
     &addr,
-    HttpRouter::paths(rimu_ws::paths!(
+    HttpRouter::paths(nyseion_ws::paths!(
       ("/baseline2", get(baseline2)),
       ("/mem", get(mem)),
       ("/stats", get(stats)),
@@ -162,14 +162,14 @@ fn static_bytes(len: usize) -> Vec<u8> {
   (0..len).map(|el| (el % 251) as u8).collect()
 }
 
-async fn baseline2(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn baseline2(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   state.req.msg_data.clear();
   state.req.msg_data.body.extend_from_copyable_slice(b"ok")?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
 /// The net live heap bytes of the worker thread serving this request, as decimal text.
-async fn mem(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn mem(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   let live = LIVE.try_with(Cell::get).unwrap_or(0);
   state.req.msg_data.clear();
   state.req.msg_data.body.extend_from_copyable_slice(live.to_string().as_bytes())?;
@@ -178,7 +178,7 @@ async fn mem(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
 
 /// The worker count and each worker's open connections (handshakes under way included), as
 /// `workers=N conns=a,b,...`.
-async fn stats(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn stats(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   let workers = STATS.get().map(Http3Stats::workers).unwrap_or_default();
   let conns: Vec<String> = workers.iter().map(|el| el.conns.to_string()).collect();
   let text = format!("workers={} conns={}", workers.len(), conns.join(","));
@@ -187,7 +187,7 @@ async fn stats(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
-async fn echo(state: State<'_, ()>) -> rimu_ws::Result<VerbatimParams> {
+async fn echo(state: State<'_, ()>) -> nyseion_ws::Result<VerbatimParams> {
   state.req.msg_data.headers.clear();
   Ok(VerbatimParams(StatusCode::Ok))
 }

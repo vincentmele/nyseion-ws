@@ -146,43 +146,43 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["std"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], optional = true, version = "1.0" }
-rimu-ws = { default-features = false, features = ["optimizations-std"], path = "../wtx" }
+nyseion-ws = { default-features = false, features = ["optimizations-std"], path = "../wtx" }
 
 [features]
 database-client-postgres = ["postgres"]
 database-client-postgres-batch = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
-database-client-tests = ["postgres", "rimu-ws/database-tests"]
-environment-variables = ["rimu-ws/macros"]
-executor = ["rimu-ws/macros"]
-grpc-client = ["grpc", "rimu-ws/grpc-client"]
-grpc-server = ["grpc", "rimu-ws/grpc-server", "rimu-ws/io-uring"]
-http2-client = ["tokio", "rimu-ws/ccadb", "rimu-ws/crypto-ring", "rimu-ws/tokio","rimu-ws/http2"]
-http2-client-pool = ["tokio", "rimu-ws/ccadb", "rimu-ws/crypto-ring", "rimu-ws/tokio", "rimu-ws/http2-client-pool"]
-http2-server = ["rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/io-uring"]
-http2-server-framework = ["serde", "serde_json", "rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/io-uring", "rimu-ws/postgres-pool", "rimu-ws/secret", "rimu-ws/serde_json"]
-http2-server-framework-cors = ["rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/io-uring"]
-http2-server-framework-form-data = ["rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/io-uring"]
-http2-server-framework-redirect = ["rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/io-uring"]
-http2-server-framework-session = ["serde", "serde_json", "rimu-ws/argon2", "rimu-ws/crypto-ring", "rimu-ws/http2-server-framework", "rimu-ws/http-session", "rimu-ws/io-uring", "rimu-ws/macros", "rimu-ws/postgres-pool"]
-secret = ["rimu-ws/secret"]
-tls-client = ["tokio", "rimu-ws/ccadb", "rimu-ws/crypto-ring", "rimu-ws/tls", "rimu-ws/tokio"]
-tls-client-concurrent = ["tokio", "rimu-ws/ccadb", "rimu-ws/crypto-ring", "rimu-ws/tls", "rimu-ws/tokio"]
-tls-context = ["rimu-ws/tls"]
-tls-server = ["tokio", "rimu-ws/crypto-ring", "rimu-ws/tls", "rimu-ws/tokio"]
-web-socket-client = ["tokio", "rimu-ws/crypto-ring", "rimu-ws/tokio", "rimu-ws/web-socket"]
-web-socket-client-concurrent = ["tokio", "rimu-ws/crypto-ring", "rimu-ws/tokio", "rimu-ws/web-socket"]
-web-socket-server = ["tokio", "rimu-ws/crypto-ring", "rimu-ws/tokio", "rimu-ws/web-socket"]
-web-socket-server-framework = ["tokio", "rimu-ws/crypto-ring", "rimu-ws/tokio", "rimu-ws/web-socket-server-framework"]
-x509 = ["rimu-ws/crypto-ring", "rimu-ws/x509"]
+database-client-tests = ["postgres", "nyseion-ws/database-tests"]
+environment-variables = ["nyseion-ws/macros"]
+executor = ["nyseion-ws/macros"]
+grpc-client = ["grpc", "nyseion-ws/grpc-client"]
+grpc-server = ["grpc", "nyseion-ws/grpc-server", "nyseion-ws/io-uring"]
+http2-client = ["tokio", "nyseion-ws/ccadb", "nyseion-ws/crypto-ring", "nyseion-ws/tokio","nyseion-ws/http2"]
+http2-client-pool = ["tokio", "nyseion-ws/ccadb", "nyseion-ws/crypto-ring", "nyseion-ws/tokio", "nyseion-ws/http2-client-pool"]
+http2-server = ["nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/io-uring"]
+http2-server-framework = ["serde", "serde_json", "nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/io-uring", "nyseion-ws/postgres-pool", "nyseion-ws/secret", "nyseion-ws/serde_json"]
+http2-server-framework-cors = ["nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/io-uring"]
+http2-server-framework-form-data = ["nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/io-uring"]
+http2-server-framework-redirect = ["nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/io-uring"]
+http2-server-framework-session = ["serde", "serde_json", "nyseion-ws/argon2", "nyseion-ws/crypto-ring", "nyseion-ws/http2-server-framework", "nyseion-ws/http-session", "nyseion-ws/io-uring", "nyseion-ws/macros", "nyseion-ws/postgres-pool"]
+secret = ["nyseion-ws/secret"]
+tls-client = ["tokio", "nyseion-ws/ccadb", "nyseion-ws/crypto-ring", "nyseion-ws/tls", "nyseion-ws/tokio"]
+tls-client-concurrent = ["tokio", "nyseion-ws/ccadb", "nyseion-ws/crypto-ring", "nyseion-ws/tls", "nyseion-ws/tokio"]
+tls-context = ["nyseion-ws/tls"]
+tls-server = ["tokio", "nyseion-ws/crypto-ring", "nyseion-ws/tls", "nyseion-ws/tokio"]
+web-socket-client = ["tokio", "nyseion-ws/crypto-ring", "nyseion-ws/tokio", "nyseion-ws/web-socket"]
+web-socket-client-concurrent = ["tokio", "nyseion-ws/crypto-ring", "nyseion-ws/tokio", "nyseion-ws/web-socket"]
+web-socket-server = ["tokio", "nyseion-ws/crypto-ring", "nyseion-ws/tokio", "nyseion-ws/web-socket"]
+web-socket-server-framework = ["tokio", "nyseion-ws/crypto-ring", "nyseion-ws/tokio", "nyseion-ws/web-socket-server-framework"]
+x509 = ["nyseion-ws/crypto-ring", "nyseion-ws/x509"]
 
-grpc = ["pb-rs", "quick-protobuf", "tokio", "rimu-ws/crypto-ring", "rimu-ws/quick-protobuf", "rimu-ws/tokio"]
-postgres = ["tokio", "rimu-ws/postgres", "rimu-ws/tokio"]
+grpc = ["pb-rs", "quick-protobuf", "tokio", "nyseion-ws/crypto-ring", "nyseion-ws/quick-protobuf", "nyseion-ws/tokio"]
+postgres = ["tokio", "nyseion-ws/postgres", "nyseion-ws/tokio"]
 
 [package]
 edition = "2024"
-name = "rimu-ws-examples"
+name = "nyseion-ws-examples"
 publish = false
 version = "0.0.0"
 

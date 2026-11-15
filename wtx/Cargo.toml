@@ -27,12 +27,12 @@ tracing = { default-features = false, optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-rimu-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
-# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0): rimu-quic and rimu-h3 at 061a695,
-# rimu-qpack at e5bbbad (14 Nov 2026)
-rimu-h3 = { default-features = false, features = ["rustls", "std"], optional = true, path = "../../rimu-quic/rimu-h3" }
-rimu-qpack = { default-features = false, features = ["std"], optional = true, path = "../../rimu-qpack" }
-rimu-quic = { default-features = false, features = ["rustls"], optional = true, path = "../../rimu-quic/rimu-quic" }
+nyseion-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
+# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0): nyseion-quic and nyseion-h3 at 061a695,
+# nyseion-qpack at e5bbbad (14 Nov 2026)
+nyseion-h3 = { default-features = false, features = ["rustls", "std"], optional = true, path = "../../nyseion-quic/nyseion-h3" }
+nyseion-qpack = { default-features = false, features = ["std"], optional = true, path = "../../nyseion-qpack" }
+nyseion-quic = { default-features = false, features = ["rustls"], optional = true, path = "../../nyseion-quic/nyseion-quic" }
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
@@ -67,10 +67,10 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 
 [dev-dependencies]
 miniz_oxide = { default-features = false, features = ["with-alloc"], version = "0.8" }
-# The in-process HTTP/3 harness of rimu-h3 (its test client's application and response parser),
+# The in-process HTTP/3 harness of nyseion-h3 (its test client's application and response parser),
 # for the tests of the HTTP/3 server framework
-rimu-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], path = "../../rimu-quic/rimu-h3" }
-rimu-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
+nyseion-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], path = "../../nyseion-quic/nyseion-h3" }
+nyseion-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]
 32-tuple-impls = []
@@ -81,7 +81,7 @@ ccadb = ["x509"]
 client-api-framework = []
 crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel?/std", "std"]
 crypto = []
-crypto-alr = ["dep:aws-lc-rs", "crypto", "rimu-quic?/aws-lc-rs"]
+crypto-alr = ["dep:aws-lc-rs", "crypto", "nyseion-quic?/aws-lc-rs"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
 crypto-ruco = [
   "dep:aead",
@@ -124,7 +124,7 @@ crypto-ruco = [
   "dep:spki",
   "dep:x25519-dalek",
 ]
-crypto-ring = ["crypto", "dep:ring", "ring?/alloc", "rimu-quic?/ring"]
+crypto-ring = ["crypto", "dep:ring", "ring?/alloc", "nyseion-quic?/ring"]
 database = []
 database-tests = ["macros", "postgres", "schema-manager-dev"]
 default = []
@@ -145,7 +145,7 @@ http1-server-framework = ["http", "io-uring", "tls"]
 http2 = ["foldhash", "hashbrown", "http", "tls"]
 http2-client-pool = ["http2", "std"]
 http2-server-framework = ["http2"]
-http3 = ["http", "quic", "dep:rimu-h3", "dep:rimu-qpack"]
+http3 = ["http", "quic", "dep:nyseion-h3", "dep:nyseion-qpack"]
 http3-server-framework = ["http2-server-framework", "http3", "io-uring"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
@@ -156,7 +156,7 @@ json-writer = ["dep:zmij"]
 # A one-shot gzip encoder for small bodies (CRC32 from zlib-rs).
 gzip-encoder = ["zlib-rs"]
 libc = ["dep:libc"]
-macros = ["dep:rimu-ws-macros"]
+macros = ["dep:nyseion-ws-macros"]
 memchr = ["dep:memchr"]
 odf = ["quick-xml", "std", "zip"]
 optimizations = ["memchr", "simdutf8"]
@@ -167,9 +167,9 @@ portable-atomic = ["dep:portable-atomic", "portable-atomic?/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
 postgres = ["crypto", "database", "foldhash", "hashbrown", "tls"]
 postgres-pool = ["postgres", "secret"]
-# QUIC (rimu-quic, its TLS on rustls): its packet keys and rustls's provider come from `crypto-ring`
+# QUIC (nyseion-quic, its TLS on rustls): its packet keys and rustls's provider come from `crypto-ring`
 # or `crypto-alr` (aws-lc-rs), one of which must be on.
-quic = ["dep:rimu-quic", "std"]
+quic = ["dep:nyseion-quic", "std"]
 quick-protobuf = ["dep:quick-protobuf", "quick-protobuf?/std", "std"]
 rand_core = ["dep:rand_core"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal?/maths"]
@@ -182,7 +182,7 @@ sha3 = ["dep:sha3"]
 simdutf8 = ["dep:simdutf8"]
 smtp = []
 socket2 = ["dep:socket2", "socket2?/all", "std"]
-std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "rimu-ws-macros?/std", "zlib-rs?/std"]
+std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "nyseion-ws-macros?/std", "zlib-rs?/std"]
 tls = ["secret", "x509"]
 tokio = ["pin-project-lite", "dep:tokio", "tokio?/io-util", "tokio?/net", "tokio?/rt", "std", "tokio?/sync", "tokio?/time"]
 tracing = ["dep:tracing", "tracing?/attributes"]
@@ -191,7 +191,7 @@ tracing-tree = ["std", "dep:tracing-tree"]
 uuid = ["dep:uuid"]
 web-socket = ["crypto", "http", "httparse", "tls"]
 web-socket-server-framework = ["web-socket"]
-rimu-ws-macros = ["dep:rimu-ws-macros"]
+nyseion-ws-macros = ["dep:nyseion-ws-macros"]
 x509 = ["asn1", "crypto", "hashbrown"]
 zlib-rs = ["dep:zlib-rs", "zlib-rs?/rust-allocator"]
 
@@ -200,7 +200,7 @@ _fuzz = ["web-socket"]
 # Test-only, not a public API: the HTTP/3 client of `http3::loopback_client`, for the in-process
 # tests of binaries (wtx-internal enables it through its dev-dependencies only)
 _fuzz-gzip = ["gzip-encoder"]
-_h3-loopback-client = ["http3", "std", "rimu-quic?/client"]
+_h3-loopback-client = ["http3", "std", "nyseion-quic?/client"]
 _hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std"] # Does not decide for downstream users
 _integration-tests = ["ccadb", "serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
@@ -215,8 +215,8 @@ description = "A collection of different transport implementations and related t
 edition = "2024"
 keywords = ["api", "database", "http", "tls", "websocket"]
 license = "MPL-2.0"
-name = "rimu-ws"
-repository = "https://github.com/vincentmele/rimu-ws"
+name = "nyseion-ws"
+repository = "https://github.com/vincentmele/nyseion-ws"
 version = "0.52.1"
 
 [package.metadata.docs.rs]

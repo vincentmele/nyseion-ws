@@ -2,7 +2,7 @@
 
 #![cfg(feature = "database")]
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorU8,
   database::{
     DbClient, FromRecords,
@@ -12,9 +12,9 @@ use rimu_ws::{
 
 // 1 2 | 1 1 2
 // 1 2 | 2 3 4
-#[rimu_ws::test]
+#[nyseion_ws::test]
 async fn from_records_basic_nested() {
-  #[derive(Debug, PartialEq, rimu_ws::FromRecords)]
+  #[derive(Debug, PartialEq, nyseion_ws::FromRecords)]
   #[from_records(MockDb)]
   struct Group {
     #[from_records(id)]
@@ -25,7 +25,7 @@ async fn from_records_basic_nested() {
     field1: VectorU8<Single>,
   }
 
-  #[derive(Debug, PartialEq, rimu_ws::FromRecords)]
+  #[derive(Debug, PartialEq, nyseion_ws::FromRecords)]
   #[from_records(MockDb)]
   struct Single {
     #[from_records(id)]
@@ -69,7 +69,7 @@ async fn from_records_basic_nested() {
     }
   );
   assert_eq!(
-    Group::many(&records).collect::<Result<Vec<_>, rimu_ws::Error>>().unwrap(),
+    Group::many(&records).collect::<Result<Vec<_>, nyseion_ws::Error>>().unwrap(),
     vec![Group {
       id: 1,
       field0: 2,
@@ -84,9 +84,9 @@ async fn from_records_basic_nested() {
 
 // 1 2 | 1 1 2
 // 1
-#[rimu_ws::test]
-async fn from_records_no_progress_error() -> rimu_ws::Result<()> {
-  #[derive(Debug, PartialEq, rimu_ws::FromRecords)]
+#[nyseion_ws::test]
+async fn from_records_no_progress_error() -> nyseion_ws::Result<()> {
+  #[derive(Debug, PartialEq, nyseion_ws::FromRecords)]
   #[from_records(MockDb)]
   struct Group {
     #[from_records(id)]
@@ -97,7 +97,7 @@ async fn from_records_no_progress_error() -> rimu_ws::Result<()> {
     field1: VectorU8<Single>,
   }
 
-  #[derive(Debug, PartialEq, rimu_ws::FromRecords)]
+  #[derive(Debug, PartialEq, nyseion_ws::FromRecords)]
   #[from_records(MockDb)]
   struct Single {
     #[from_records(id)]
@@ -133,8 +133,8 @@ async fn from_records_no_progress_error() -> rimu_ws::Result<()> {
     }
   );
   assert!(matches!(
-    Group::many(&records).collect::<Result<Vec<_>, rimu_ws::Error>>(),
-    Err(rimu_ws::Error::TryFromSlice(_))
+    Group::many(&records).collect::<Result<Vec<_>, nyseion_ws::Error>>(),
+    Err(nyseion_ws::Error::TryFromSlice(_))
   ));
   Ok(())
 }

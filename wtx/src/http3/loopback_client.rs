@@ -1,7 +1,7 @@
 //! A minimal HTTP/3 client over a UDP socket, for the in-process tests of binaries (feature
 //! `_h3-loopback-client`: test-only, not a public API, hidden from the documentation).
 //!
-//! It runs rimu-quic's test client ([`TestClient`]), with the static QPACK table only, and sends
+//! It runs nyseion-quic's test client ([`TestClient`]), with the static QPACK table only, and sends
 //! `GET`s without a control stream. It is not a general client: it trusts any certificate,
 //! follows no Retry and migrates nowhere. Its allocations are those of a test (a reply owns its
 //! bytes), so a test that counts the allocations of a server counts the threads of the server
@@ -9,9 +9,9 @@
 
 use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
 use core::time::Duration;
-use rimu_h3::frame::{H3FrameTy, decode_frame_header, encode_frame_header};
-use rimu_qpack::{DecodeOutcome, DecodedField, Decoder, DecoderConfig, encode_static};
-use rimu_quic::{ConnCtx, QuicApp, QuicParams, StreamId, client::TestClient, rng::ChaCha20};
+use nyseion_h3::frame::{H3FrameTy, decode_frame_header, encode_frame_header};
+use nyseion_qpack::{DecodeOutcome, DecodedField, Decoder, DecoderConfig, encode_static};
+use nyseion_quic::{ConnCtx, QuicApp, QuicParams, StreamId, client::TestClient, rng::ChaCha20};
 use std::{net::UdpSocket, time::Instant};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -60,7 +60,7 @@ struct ClientApp {
 impl QuicApp for ClientApp {
   type ConnState = ();
 
-  fn on_established(&mut self, _: &mut ConnCtx<'_, ()>) -> rimu_quic::Result<()> {
+  fn on_established(&mut self, _: &mut ConnCtx<'_, ()>) -> nyseion_quic::Result<()> {
     Ok(())
   }
 
@@ -70,7 +70,7 @@ impl QuicApp for ClientApp {
     id: StreamId,
     data: &[u8],
     fin: bool,
-  ) -> rimu_quic::Result<()> {
+  ) -> nyseion_quic::Result<()> {
     let arrived = self.streams.entry(id.0).or_default();
     arrived.data.extend_from_slice(data);
     arrived.fin |= fin;
@@ -82,7 +82,7 @@ impl QuicApp for ClientApp {
     _: &mut ConnCtx<'_, ()>,
     id: StreamId,
     _: u64,
-  ) -> rimu_quic::Result<()> {
+  ) -> nyseion_quic::Result<()> {
     // A reply that ends in a reset is never complete
     let _rslt = self.streams.remove(&id.0);
     Ok(())
@@ -93,7 +93,7 @@ impl QuicApp for ClientApp {
     _: &mut ConnCtx<'_, ()>,
     _: StreamId,
     _: u64,
-  ) -> rimu_quic::Result<()> {
+  ) -> nyseion_quic::Result<()> {
     Ok(())
   }
 
@@ -211,7 +211,7 @@ impl H3LoopbackClient {
     let id = self.conn.with_ctx(now_us, |_, cx| {
       let id = cx.open_bidi()?;
       cx.write(id, &frame, true)?;
-      Ok::<_, rimu_quic::Error>(id)
+      Ok::<_, nyseion_quic::Error>(id)
     })?;
     Ok(id.0)
   }
@@ -346,7 +346,7 @@ fn parse(id: u64, bytes: &[u8]) -> crate::Result<H3Reply> {
         let outcome = decoder
           .decode(id, payload, |field: DecodedField<'_>| {
             fields.push((field.name.to_vec(), field.value.to_vec()));
-            Ok::<(), rimu_qpack::Error>(())
+            Ok::<(), nyseion_qpack::Error>(())
           })
           .map_err(|_| bad())?;
         if !matches!(outcome, DecodeOutcome::Done { .. }) {

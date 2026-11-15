@@ -13,10 +13,10 @@
 # Clients (built from pinned sources by .scripts/h3-interop/Dockerfile.*; the versions below are the
 # ones in those files, ruling T21-b):
 #   curl      curl 8.23.0 (tag curl-8_23_0) on ngtcp2 v1.26.0, nghttp3 v1.19.0, quictls
-#             openssl-3.3.0-quic1; --http3-only        image rimu-h3-interop-curl
-#   ngtcp2    the example client of ngtcp2 v1.26.0     image rimu-h3-interop-curl
+#             openssl-3.3.0-quic1; --http3-only        image nyseion-h3-interop-curl
+#   ngtcp2    the example client of ngtcp2 v1.26.0     image nyseion-h3-interop-curl
 #   quic-go   github.com/quic-go/quic-go v0.65.0 (http3 package), Go from golang:1.27.3-trixie
-#                                                      image rimu-h3-interop-quic-go
+#                                                      image nyseion-h3-interop-quic-go
 #
 # Paths between a client and the server (UDP 8443, arena-h2 with ARENA_TEST_ROUTES=1 for /echo):
 #   direct    no proxy
@@ -47,7 +47,7 @@
 # Environment:
 #   ARENA      HttpArena checkout with data/ and certs/ (default /mnt/nvme1tb/claude-tmp/arena-main)
 #   ARENA_BIN  the arena-h2 binary (default $CARGO_TARGET_DIR/release/arena-h2), built with
-#              `cargo build --release -p rimu-ws-internal --features arena-h2,udp-impair`
+#              `cargo build --release -p nyseion-ws-internal --features arena-h2,udp-impair`
 #   IMPAIR_BIN the udp-impair binary (default $CARGO_TARGET_DIR/release/udp-impair)
 #   SEED       seed of the proxy (default 1)
 #   PING_BUDGET  ARENA_H3_PING_BUDGET of the server (unset: the library's base of 64 PING frames a
@@ -87,8 +87,8 @@ while getopts "bc:p:f:" opt; do
 	esac
 done
 
-image_curl=rimu-h3-interop-curl
-image_go=rimu-h3-interop-quic-go
+image_curl=nyseion-h3-interop-curl
+image_go=nyseion-h3-interop-quic-go
 
 if [ "$build" = 1 ]; then
 	docker build -f "$dir/h3-interop/Dockerfile.curl-ngtcp2" -t "$image_curl" "$dir/h3-interop"

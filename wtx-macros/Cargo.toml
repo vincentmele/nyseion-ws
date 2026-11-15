@@ -17,8 +17,8 @@ edition = "2024"
 exclude = ["tests"]
 keywords = ["api", "client", "io", "network"]
 license = "MPL-2.0"
-name = "rimu-ws-macros"
-repository = "https://github.com/vincentmele/rimu-ws"
+name = "nyseion-ws-macros"
+repository = "https://github.com/vincentmele/nyseion-ws"
 version = "0.12.1"
 
 [package.metadata.docs.rs]

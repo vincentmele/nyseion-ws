@@ -60,8 +60,8 @@ use core::{
   task::{Context, Poll},
   time::Duration,
 };
-use rimu_h3::{H3ErrorCode, H3Params, H3Server};
-use rimu_quic::{
+use nyseion_h3::{H3ErrorCode, H3Params, H3Server};
+use nyseion_quic::{
   DatagramMeta, Endpoint, EndpointKeys, FlushOutcome, QuicApp, QuicLimits, QuicParams, RecvOutcome,
   WorkerLoads, rustls::RustlsConfig, steering_cbpf,
 };
@@ -73,9 +73,9 @@ pub(crate) const IDLE_TRIM_AFTER: Duration = Duration::from_secs(1);
 // their closing period before the worker stops anyway
 const SHUTDOWN_LINGER: Duration = Duration::from_secs(5);
 
-/// The `Arc` of the standard library, which rimu-quic takes (the endpoint's keys, loads and TLS
+/// The `Arc` of the standard library, which nyseion-quic takes (the endpoint's keys, loads and TLS
 /// configuration).
-#[allow(clippy::disallowed_types, reason = "rimu-quic takes the standard `Arc`")]
+#[allow(clippy::disallowed_types, reason = "nyseion-quic takes the standard `Arc`")]
 pub(crate) type StdArc<T> = alloc::sync::Arc<T>;
 
 /// What a worker is given.
@@ -429,10 +429,10 @@ where
 
 type App<DA, EC, EN, ER, M> = H3Server<RouterHandler<FwRouter<DA, EN, ER, M>, EC>>;
 
-/// A generator of rimu-ws as the generator that the QUIC endpoint draws from.
+/// A generator of nyseion-ws as the generator that the QUIC endpoint draws from.
 pub(crate) struct QuicRng<'rng, RNG>(pub(crate) &'rng mut RNG);
 
-impl<RNG> rimu_quic::rng::Rng for QuicRng<'_, RNG>
+impl<RNG> nyseion_quic::rng::Rng for QuicRng<'_, RNG>
 where
   RNG: CryptoRng,
 {

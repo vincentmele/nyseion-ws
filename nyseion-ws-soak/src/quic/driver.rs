@@ -1,7 +1,7 @@
 //! The QUIC/HTTP/3 soak: a well-behaved steady client (64 connections × 64 streams) on the
 //! four-worker server, a small steady client (4 × 4) on the one-worker server, both running for the
 //! whole ~10-minute run (rulings T23-a/T23-k), beside abusive clients run in sequence. Both servers
-//! are watched once a second. Each abuser is bounded by one limit of `rimu-ws` (spec section 5.12);
+//! are watched once a second. Each abuser is bounded by one limit of `nyseion-ws` (spec section 5.12);
 //! its pass rule is that the server's RSS stays within 10 % of the plateau the steady client
 //! settles at (strict, ruling T23-i), the steady client never stalls, and the abuser is closed with
 //! the named error or rate-limited (ruling T23-c).

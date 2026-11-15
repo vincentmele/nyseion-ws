@@ -1,10 +1,10 @@
 //! Endpoint with data and parameters
 
-rimu_ws::create_packages_aux_wrapper!();
+nyseion_ws::create_packages_aux_wrapper!();
 
 type Api = ();
 
-#[rimu_ws::pkg(data_format(json), id(super::Api), transport(http))]
+#[nyseion_ws::pkg(data_format(json), id(super::Api), transport(http))]
 mod pkg {
   #[pkg::aux]
   impl super::PkgsAux<(), (), ()> {}

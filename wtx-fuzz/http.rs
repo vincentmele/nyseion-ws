@@ -3,7 +3,7 @@
 #![no_main]
 
 use core::str;
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   http::{HeaderName, KnownHeaderName, Method, Protocol, Version, cookie::CookieStr},
 };

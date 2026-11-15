@@ -1,13 +1,13 @@
 //! Allocation tests of the arena-h2 HTTP/3 server, end to end: the program's own server
 //! ([`spawn_h3_with`]: its router, endpoints, `ConnAux`, switches and `StaticFiles`) on a counted
 //! worker thread, and the loopback HTTP/3 client of the library
-//! ([`rimu_ws::http3::loopback_client`]) on the test's threads, over UDP on loopback. They are
+//! ([`nyseion_ws::http3::loopback_client`]) on the test's threads, over UDP on loopback. They are
 //! correctness tests, not benchmarks: the load is a few thousand requests.
 //!
 //! After a warm-up that reaches the measured steady state (the connections open, the streams in
 //! flight), a keep-alive load of `/baseline2` or `/static` allocates nothing on the server's
 //! thread, and opening, serving and closing a connection allocates only in the TLS handshake:
-//! rustls (rimu-quic's TLS) and its crypto backend, at most [`TLS_PER_HANDSHAKE`] allocations.
+//! rustls (nyseion-quic's TLS) and its crypto backend, at most [`TLS_PER_HANDSHAKE`] allocations.
 //!
 //! A counting global allocator counts the allocations of the threads that were told to (the
 //! worker thread of each test server, from its local-runtime callback), each server in its own
@@ -35,7 +35,7 @@ use core::{
   sync::atomic::{AtomicI64, Ordering},
   time::Duration,
 };
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   executor::UdpParams,
   http::{ShutdownSignal, http3_server_framework::Http3Stats},
@@ -55,19 +55,19 @@ const DEPTH: usize = 64;
 /// Connections opened before counting in the churn test, and counted.
 const CHURN_WARMUP: usize = 100;
 /// The requests of a connection of the churn test's warm-up, each a section of its own: as many as
-/// the QPACK decode memo of a connection keeps. rimu-qpack's memo adds entries up to its capacity
-/// (8 sections, rimu-h3) before it uses those that the reset for the next connection emptied, so
+/// the QPACK decode memo of a connection keeps. nyseion-qpack's memo adds entries up to its capacity
+/// (8 sections, nyseion-h3) before it uses those that the reset for the next connection emptied, so
 /// a pooled connection state is warm once a connection decoded that many sections in it (the
-/// in-tree memo of rimu-ws, a fixed array, was warm after one).
+/// in-tree memo of nyseion-ws, a fixed array, was warm after one).
 const CHURN_WARM_SECTIONS: usize = 8;
 const CHURN_CONNS: usize = 200;
 /// The connections of the burst that warms the churn test up, open at once.
 const BURST: usize = 64;
 /// The allocations that one handshake takes in TLS, measured (14 Nov 2026, rustls 0.23 with the
-/// RSA-2048 certificate of the arena): 82 in rustls, 5 in rimu-quic's adapter of it (the session
+/// RSA-2048 certificate of the arena): 82 in rustls, 5 in nyseion-quic's adapter of it (the session
 /// and its transport parameters, the boxes of the connection's TLS state and of its key updater)
 /// and 9 in the crypto backend (ring's RSA signature), every handshake the same. The in-tree TLS
-/// of rimu-ws pooled its handshake state and took the 9 of the signature alone.
+/// of nyseion-ws pooled its handshake state and took the 9 of the signature alone.
 const TLS_PER_HANDSHAKE: u64 = 96;
 /// Where the certificate pair is, unless `CERT_DIR` says.
 const CERT_DIR: &str = "/mnt/nvme1tb/claude-tmp/arena-main/certs";
@@ -252,11 +252,11 @@ unsafe impl GlobalAlloc for CountingAlloc {
 static GLOBAL: CountingAlloc = CountingAlloc;
 
 /// Who an allocation is charged to: the innermost frame of its backtrace that belongs to one of
-/// these. `Core` is the sans-I/O QUIC, HTTP/3 and QPACK code (rimu-quic, rimu-h3, rimu-qpack),
+/// these. `Core` is the sans-I/O QUIC, HTTP/3 and QPACK code (nyseion-quic, nyseion-h3, nyseion-qpack),
 /// `Framework` the HTTP/3 server framework (its router handler and the static files), `Driver` the
 /// framework's endpoint task (the loop of a worker), `App` the arena's endpoints, `Executor` the
 /// io_uring runtime (sockets, timers, the UDP ring) and `Tls` the handshake: rustls and
-/// rimu-quic's adapter of it. The crypto backend's own frames are charged to it, not to the TLS
+/// nyseion-quic's adapter of it. The crypto backend's own frames are charged to it, not to the TLS
 /// code that called it.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum Owner {
@@ -278,19 +278,19 @@ impl Owner {
     const OWNERS: [(&str, Owner); 16] = [
       ("ring::", Owner::Crypto),
       ("rustls::", Owner::Tls),
-      ("rimu_quic::rustls::", Owner::Tls),
-      ("rimu_quic::conn_tls::", Owner::Tls),
+      ("nyseion_quic::rustls::", Owner::Tls),
+      ("nyseion_quic::conn_tls::", Owner::Tls),
       // The box of the key updater that TLS hands over when the handshake ends
-      ("rimu_quic::key_phase::KeyPhase::set_updater", Owner::Tls),
-      ("rimu_quic::", Owner::Core),
-      ("rimu_h3::", Owner::Core),
-      ("rimu_qpack::", Owner::Core),
-      ("rimu_ws::http::http3_server_framework::endpoint_task::", Owner::Driver),
-      ("rimu_ws::http::http3_server_framework::", Owner::Framework),
-      ("rimu_ws::http::static_files::", Owner::Framework),
-      ("rimu_ws::http::http2_server_framework::", Owner::Framework),
-      ("rimu_ws::executor::", Owner::Executor),
-      ("rimu_ws::tls::", Owner::Tls),
+      ("nyseion_quic::key_phase::KeyPhase::set_updater", Owner::Tls),
+      ("nyseion_quic::", Owner::Core),
+      ("nyseion_h3::", Owner::Core),
+      ("nyseion_qpack::", Owner::Core),
+      ("nyseion_ws::http::http3_server_framework::endpoint_task::", Owner::Driver),
+      ("nyseion_ws::http::http3_server_framework::", Owner::Framework),
+      ("nyseion_ws::http::static_files::", Owner::Framework),
+      ("nyseion_ws::http::http2_server_framework::", Owner::Framework),
+      ("nyseion_ws::executor::", Owner::Executor),
+      ("nyseion_ws::tls::", Owner::Tls),
       ("arena_h2::endpoint_", Owner::App),
       ("arena_h2::write_json", Owner::App),
     ];
@@ -309,15 +309,15 @@ impl Owner {
       if idx.is_empty() || !idx.bytes().all(|el| el.is_ascii_digit()) {
         continue;
       }
-      // `<rimu_ws::tls::Foo<..> as ..>::read` is charged as `rimu_ws::tls::Foo`
+      // `<nyseion_ws::tls::Foo<..> as ..>::read` is charged as `nyseion_ws::tls::Foo`
       let name = name.trim_start_matches('<');
       let path = name.split(['<', ' ']).next().unwrap_or(name);
       let path = path.replace('>', "");
       let path = path.trim_end_matches(':');
-      // The box of the TLS state of a new connection (rimu-quic's `ConnTls`), the one allocation
+      // The box of the TLS state of a new connection (nyseion-quic's `ConnTls`), the one allocation
       // that the endpoint makes itself when it opens a connection
-      if path == "rimu_quic::endpoint::Endpoint" && name.ends_with(">::open") {
-        return (Owner::Tls, "rimu_quic::endpoint::Endpoint::open".to_owned());
+      if path == "nyseion_quic::endpoint::Endpoint" && name.ends_with(">::open") {
+        return (Owner::Tls, "nyseion_quic::endpoint::Endpoint::open".to_owned());
       }
       if let Some(owner) = Self::of_path(path) {
         return (owner, path.to_owned());
@@ -351,7 +351,7 @@ fn env_or(name: &str, default: &str) -> String {
 /// The arena-h2 HTTP/3 server on loopback, one worker whose thread is counted in `counts`.
 struct Served {
   addr: SocketAddr,
-  handle: Option<std::thread::JoinHandle<rimu_ws::Result<()>>>,
+  handle: Option<std::thread::JoinHandle<nyseion_ws::Result<()>>>,
   signal: ShutdownSignal,
   stats: Http3Stats,
   udp: UdpParams,
@@ -423,7 +423,7 @@ impl Served {
   fn wait(
     &self,
     what: &str,
-    f: impl Fn(&rimu_ws::http::http3_server_framework::Http3WorkerStats) -> bool,
+    f: impl Fn(&nyseion_ws::http::http3_server_framework::Http3WorkerStats) -> bool,
   ) {
     let begin = Instant::now();
     loop {
@@ -716,7 +716,7 @@ fn churn(counts: &'static Counts, served: &Served, (warm, conns): (usize, usize)
     warm_peak = warm_peak.max(held(served));
   }
   // Every connection of the warm-up closed: each pool has held all that the warm-up made at once,
-  // as at the end of the window (the free lists of rimu-quic's and rimu-h3's pools grow then)
+  // as at the end of the window (the free lists of nyseion-quic's and nyseion-h3's pools grow then)
   served.wait("warm-up closed", |el| el.conns == 0);
   // The symbols are loaded once here, not in the middle of a connection of the server
   let _ = std::backtrace::Backtrace::force_capture().to_string();
@@ -804,12 +804,12 @@ fn counting_is_live_on_server_threads() {
   );
   // The classification of frames
   assert_eq!(Owner::of_path("ring::rsa::signing::sign"), Some(Owner::Crypto));
-  assert_eq!(Owner::of_path("rimu_quic::conn::flush"), Some(Owner::Core));
-  assert_eq!(Owner::of_path("rimu_h3::server::parse"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("nyseion_quic::conn::flush"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("nyseion_h3::server::parse"), Some(Owner::Core));
   assert_eq!(Owner::of_path("rustls::server::hs::start"), Some(Owner::Tls));
-  assert_eq!(Owner::of_path("rimu_quic::rustls::new_session"), Some(Owner::Tls));
+  assert_eq!(Owner::of_path("nyseion_quic::rustls::new_session"), Some(Owner::Tls));
   assert_eq!(
-    Owner::of_path("rimu_ws::http::http3_server_framework::endpoint_task::turn"),
+    Owner::of_path("nyseion_ws::http::http3_server_framework::endpoint_task::turn"),
     Some(Owner::Driver)
   );
   assert_eq!(Owner::of_path("arena_h2::alloc_tests_h3::drive"), None);
@@ -951,7 +951,7 @@ fn memory_report() {
 /// connections with 64 streams each, once honest and once with the clients withholding their ACKs
 /// for `HOLD_MS` (the connections reach their congestion window and PTO probes pile on).
 fn chunk_pool_profile(profile: &str, request: &mut dyn FnMut(usize) -> H3Get) {
-  use rimu_ws::quic::diag;
+  use nyseion_ws::quic::diag;
   let counts = Counts::leak();
   let served = Served::new(counts);
   let mut clients: Vec<_> = (0..CONNS).map(|_| served.client()).collect();

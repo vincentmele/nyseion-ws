@@ -7,7 +7,7 @@
 
 extern crate alloc;
 #[cfg(test)]
-extern crate self as rimu_ws;
+extern crate self as nyseion_ws;
 #[cfg(feature = "std")]
 extern crate std;
 #[allow(unused_extern_crates, reason = "selection of features")]
@@ -50,10 +50,10 @@ pub mod net;
 #[cfg(feature = "odf")]
 pub mod odf;
 pub mod pool;
-/// QUIC version 1 (RFC 9000, 9001, 9002): the rimu-quic crate, whose transport the HTTP/3 server
+/// QUIC version 1 (RFC 9000, 9001, 9002): the nyseion-quic crate, whose transport the HTTP/3 server
 /// framework runs on.
 #[cfg(feature = "quic")]
-pub use rimu_quic as quic;
+pub use nyseion_quic as quic;
 pub mod rng;
 #[cfg(feature = "secret")]
 pub mod secret;
@@ -71,7 +71,7 @@ pub mod x509;
 
 pub use error::{Error, RecvError, SendError};
 #[cfg(feature = "macros")]
-pub use rimu_ws_macros::*;
+pub use nyseion_ws_macros::*;
 
 #[cfg(feature = "tls")]
 const AFTER_CLOSE_TIMEOUT_MS: u64 = 50;

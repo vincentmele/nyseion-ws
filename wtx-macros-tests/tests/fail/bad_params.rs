@@ -1,4 +1,4 @@
-#[rimu_ws::pkg(data_format(json), id(FooId))]
+#[nyseion_ws::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[derive(Debug)]
   #[pkg::params]

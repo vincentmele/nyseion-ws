@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 use std::{fs, process};
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme},
 };

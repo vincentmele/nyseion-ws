@@ -22,7 +22,7 @@
 //! ALTER TABLE _wtx.session ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
 //! ```
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   database::{DbClient, Record},
   executor::{Executor as _, Runtime as _, UringExecutor, UringParams, UringRuntime},
@@ -39,12 +39,12 @@ use rimu_ws::{
   sync::Arc,
   tls::{TlsConfig, TrustedCtx},
 };
-use rimu_ws_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
+use nyseion_ws_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type DbPool = SimplePool<PostgresRMDefault<rimu_ws::Error, UringExecutor, TrustedCtx>>;
-type LocalSessionManager = SessionManager<u32, rimu_ws::Error>;
+type DbPool = SimplePool<PostgresRMDefault<nyseion_ws::Error, UringExecutor, TrustedCtx>>;
+type LocalSessionManager = SessionManager<u32, nyseion_ws::Error>;
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let mut rng = ChaCha20::from_std_random()?;
   let db_pool = DbPool::new(
     4,
@@ -59,7 +59,7 @@ fn main() -> rimu_ws::Result<()> {
     LocalSessionManager::builder().build_generating_key(&mut rng, db_pool.clone())?;
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::new(
-    rimu_ws::paths!(("/login", post(login)), ("/logout", get(logout))),
+    nyseion_ws::paths!(("/login", post(login)), ("/logout", get(logout))),
     SessionMiddleware::new(VectorUsize::new(), session_manager.clone(), db_pool.clone()),
   )?;
   // The pool's connections belong to the io_uring runtime that opened them, so the server and
@@ -79,7 +79,7 @@ fn main() -> rimu_ws::Result<()> {
   })
 }
 
-async fn login(State { data, req }: State<'_, Data>) -> rimu_ws::Result<DynParams> {
+async fn login(State { data, req }: State<'_, Data>) -> nyseion_ws::Result<DynParams> {
   let Data { db_pool, session_manager, session_state } = data;
   if session_state.is_some() {
     req.clear();
@@ -112,13 +112,13 @@ async fn login(State { data, req }: State<'_, Data>) -> rimu_ws::Result<DynParam
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
-async fn logout(StateClean { data, req }: StateClean<'_, Data>) -> rimu_ws::Result<VerbatimParams> {
+async fn logout(StateClean { data, req }: StateClean<'_, Data>) -> nyseion_ws::Result<VerbatimParams> {
   let Data { db_pool, session_manager, session_state } = data;
   session_manager.delete_session_cookie(&mut req.msg_data, session_state, db_pool).await?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
-#[derive(Clone, Debug, rimu_ws::Lease)]
+#[derive(Clone, Debug, nyseion_ws::Lease)]
 struct Data {
   db_pool: DbPool,
   session_manager: LocalSessionManager,

@@ -4,7 +4,7 @@
 #
 #   h3-bench.sh SERVER PROFILE
 #
-#   SERVER   rimu (the native arena-h2 binary, UDP 8443) or plod | fib | aegon | cnetmod | zix
+#   SERVER   nyseion (the native arena-h2 binary, UDP 8443) or plod | fib | aegon | cnetmod | zix
 #            (docker images httparena-<name>, built from HttpArena's frameworks/<name>; for zix
 #            from frameworks/zix-http3, the only zix entry that serves h3)
 #   PROFILE  baseline-h3 | static-h3
@@ -21,7 +21,7 @@
 #    "dgrams_in_per_req","dgrams_out_per_req","pkts_out_per_req","ack_only_share",
 #    "resp_per_pkt","fin_ack_share","streams_blocked","data_blocked","stream_data_blocked",
 #    "packets_lost","pto_probes","frames_resent"}
-# and, for rimu, "headers" (ARENA_H3_HEADERS, `min` when unset: arena-h2's default since decision
+# and, for nyseion, "headers" (ARENA_H3_HEADERS, `min` when unset: arena-h2's default since decision
 # Q2, so that runs before and after it are never mixed unlabelled) and "knobs" (the line of h3
 # settings that arena-h2 prints at start, if it prints one).
 # rps and the per-request figures are those of the best run. A CPU figure is the CPU time (user +
@@ -31,7 +31,7 @@
 # the server's time is read at both, so neither the start nor the stop of the container counts. A
 # docker server's time comes from its cgroup (the entrypoints of some rivals fork), the native
 # server's from /proc/PID/stat, the generator's from its own container's cgroup, read just before it
-# exits. The datagram figures exist for rimu only (null for the others): the datagrams it received
+# exits. The datagram figures exist for nyseion only (null for the others): the datagrams it received
 # and sent per 2xx response and the share of the packets it sent that were ACK-only
 # (Http3WorkerStats, which arena-h2 prints on SIGUSR1, read at the same two moments). errors sums,
 # over the runs, h2load's failed + errored + timeout requests and the non-2xx responses; a run
@@ -50,7 +50,7 @@
 #                 builds with -C target-cpu=native, so the default target dir is the one built so)
 #   ARENA_H3_HEADERS  min (arena-h2's default: content-type only, like cnetmod and zix) or full
 #                 (RFC 9110 fields and the server middleware), passed on to arena-h2; recorded in
-#                 every rimu output line, `min` when unset
+#                 every nyseion output line, `min` when unset
 #   RUNS          runs per server start (default 3)
 #   DURATION      h2load -D (default 5s)
 #   GEN_LOCALHOST v4 (default: the generator resolves localhost to 127.0.0.1 only) or auto (the
@@ -92,7 +92,7 @@ auto) ;;
 esac
 
 case $server in
-rimu | plod | fib | aegon | cnetmod | zix) ;;
+nyseion | plod | fib | aegon | cnetmod | zix) ;;
 *)
 	echo "unknown server $server" >&2
 	exit 2
@@ -172,7 +172,7 @@ ulimit -n "$(ulimit -Hn)"
 
 load1=$(cut -d' ' -f1 /proc/loadavg)
 
-if [ "$server" = rimu ]; then
+if [ "$server" = nyseion ]; then
 	CERT_DIR=$arena/certs DATASET_PATH=$arena/data/dataset.json STATIC_DIR=$arena/data/static \
 		taskset -c $server_cpus "$bin" >"$log" 2>&1 &
 	server_pid=$!
@@ -319,7 +319,7 @@ exit $rc' \
 	stats_after=""
 	if wait_for_file "$sync_dir/ready" 3000 $gen; then
 		before=$(server_cpu_usec)
-		if [ -n "$server_pid" ] && [ "$server" = rimu ]; then
+		if [ -n "$server_pid" ] && [ "$server" = nyseion ]; then
 			stats_before=$(h3_stats_line || true)
 			before=$(server_cpu_usec)
 		fi
@@ -408,7 +408,7 @@ join() {
 	echo "$*"
 }
 headers=""
-if [ "$server" = rimu ]; then
+if [ "$server" = nyseion ]; then
 	headers=$(printf ',"headers":"%s"' "${ARENA_H3_HEADERS:-min}")
 	knobs=$(grep -m1 '^arena-h2: h3 knobs ' "$log" | sed 's/^arena-h2: h3 knobs //' | tr -cd 'a-z0-9_=. -' || true)
 	[ -n "$knobs" ] && headers="$headers$(printf ',"knobs":"%s"' "$knobs")"

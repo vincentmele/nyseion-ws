@@ -1,7 +1,7 @@
-#[rimu_ws::pkg(data_format(json), id(FooId))]
+#[nyseion_ws::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::before_sending]
-  async fn before_sending(foo: i32) -> rimu_ws::Result<()> {
+  async fn before_sending(foo: i32) -> nyseion_ws::Result<()> {
     Ok(())
   }
 

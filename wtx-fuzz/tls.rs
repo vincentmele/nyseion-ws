@@ -2,7 +2,7 @@
 
 #![no_main]
 
-use rimu_ws::{
+use nyseion_ws::{
   executor::StdRuntime,
   net::{BytesStream, StreamWriter as _, UriRef},
   rng::ChaCha20,

@@ -17,7 +17,7 @@
 #   H3SPEC_DIR  directory of the binary (default /mnt/nvme1tb/claude-tmp/h3spec)
 #   ARENA       HttpArena checkout with data/ and certs/ (default /mnt/nvme1tb/claude-tmp/arena-main)
 #   ARENA_BIN   the arena-h2 binary (default $CARGO_TARGET_DIR/release/arena-h2), built with
-#               `cargo build --release -p rimu-ws-internal --features arena-h2`
+#               `cargo build --release -p nyseion-ws-internal --features arena-h2`
 #   TIMEOUT_MS  h3spec's timeout for each case (default 2000, its own default)
 #
 # Output: h3spec's own, and `h3spec: N examples, N failures` last; exit status 0 only if every case

@@ -5,7 +5,7 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   executor::{UringExecutor, UringParams, UringRuntime, UringTcpStream},
   http::WebSocketServerFramework,
@@ -17,18 +17,18 @@ use rimu_ws::{
   },
 };
 
-fn main() -> rimu_ws::Result<()> {
+fn main() -> nyseion_ws::Result<()> {
   let direct = std::env::var("WTX_DIRECT").ok().and_then(|el| el.parse().ok()).unwrap_or(0);
   WebSocketServerFramework::<
     (),
-    fn(rimu_ws::Error),
+    fn(nyseion_ws::Error),
     UringExecutor,
-    fn() -> rimu_ws::Result<UringRuntime>,
+    fn() -> nyseion_ws::Result<UringRuntime>,
     ChaCha20,
     PlaintextCtx,
   >::new(UringExecutor::default(), ChaCha20::from_std_random()?, TlsConfig::plaintext())?
   .set_compression(ZlibRs::default())
-  .set_error_cb(|error: rimu_ws::Error| eprintln!("{error}"))
+  .set_error_cb(|error: nyseion_ws::Error| eprintln!("{error}"))
   .set_local_runtime_cb(move || {
     UringRuntime::with_params(UringParams::new().set_direct_files(direct))
   })
@@ -38,7 +38,7 @@ fn main() -> rimu_ws::Result<()> {
 async fn echo(
   mut buffer: VectorUsize<u8>,
   mut ws: WebSocket<Option<NegotiatedZlibRs>, UringTcpStream, PlaintextCtx, false>,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   let origin = WebSocketPayloadOrigin::Adaptive;
   loop {

@@ -1,5 +1,5 @@
-//! The framework end to end, over UDP on loopback: a QUIC client of tests (rimu-quic's test
-//! client, with the application of rimu-h3's test harness, which collects what arrives on every
+//! The framework end to end, over UDP on loopback: a QUIC client of tests (nyseion-quic's test
+//! client, with the application of nyseion-h3's test harness, which collects what arrives on every
 //! stream) against workers run by [`Http3ServerFramework::run_in_threads`].
 
 use crate::{
@@ -39,12 +39,12 @@ use core::{
   task::{Context, Poll, Waker},
   time::Duration,
 };
-use rimu_h3::{
+use nyseion_h3::{
   H3Params, H3Server,
   frame::{H3FrameTy, decode_frame_header},
   testing::{ClientApp, Response, TestHandler, data_frame, headers_frame, response_of},
 };
-use rimu_quic::{
+use nyseion_quic::{
   ConnHandle, DatagramMeta, Endpoint as QuicEndpoint, EndpointKeys, QuicParams, RecvOutcome,
   SteeringProgram, StreamId, WorkerLoads,
   client::{TEST_CERT_PEM, TEST_KEY_PEM, TestClient},
@@ -84,7 +84,7 @@ pub(crate) struct PoolSizes {
   pub(crate) h3_conns: usize,
 }
 
-/// The TLS configuration of rimu-quic's test certificate (ECDSA P-256, `localhost`), offering `h3`.
+/// The TLS configuration of nyseion-quic's test certificate (ECDSA P-256, `localhost`), offering `h3`.
 fn server_tls_config() -> RustlsConfig {
   RustlsConfig::builder()
     .cert_chain_pem(TEST_CERT_PEM)
@@ -185,7 +185,7 @@ where
   }
 }
 
-/// Adds `server: rimu-ws` to every response, and answers `/blocked` with 403 itself.
+/// Adds `server: nyseion-ws` to every response, and answers `/blocked` with 403 itself.
 struct ServerHeader;
 
 impl Middleware<(), crate::Error> for ServerHeader {
@@ -213,7 +213,7 @@ impl Middleware<(), crate::Error> for ServerHeader {
     res: HttpResponse<&mut MsgBufferString>,
   ) -> crate::Result<ControlFlow<StatusCode, ()>> {
     let server = KnownHeaderName::Server.into();
-    res.msg_data.headers.push_from_iter(Header::from_name_and_value(server, ["rimu-ws"]))?;
+    res.msg_data.headers.push_from_iter(Header::from_name_and_value(server, ["nyseion-ws"]))?;
     Ok(ControlFlow::Continue(()))
   }
 }
@@ -317,7 +317,7 @@ impl Drop for Served {
 
 /// A directory of static files for one test.
 fn static_dir(name: &str) -> PathBuf {
-  let dir = std::env::temp_dir().join(format!("rimu-h3fw-{name}-{}", std::process::id()));
+  let dir = std::env::temp_dir().join(format!("nyseion-h3fw-{name}-{}", std::process::id()));
   let _rslt = std::fs::remove_dir_all(&dir);
   std::fs::create_dir_all(&dir).unwrap();
   dir
@@ -409,7 +409,7 @@ struct Client {
 impl Client {
   fn new(server: SocketAddr) -> Self {
     let socket = UdpSocket::bind(SocketAddr::new(server.ip(), 0)).unwrap();
-    let mut rng = rimu_quic::rng::ChaCha20::from_os().unwrap();
+    let mut rng = nyseion_quic::rng::ChaCha20::from_os().unwrap();
     let params = QuicParams::default();
     let conn = TestClient::new(ClientApp::default(), &params, server, b"h3", &mut rng, 0).unwrap();
     Self { conn, epoch: Instant::now(), rx: vec![0; 1 << 16], server, socket }
@@ -493,7 +493,7 @@ impl Client {
     let rslt = self.conn.with_ctx(now_us, |_, cx| {
       let id = cx.open_bidi()?;
       cx.write(id, bytes, fin)?;
-      Ok::<_, rimu_quic::Error>(id)
+      Ok::<_, nyseion_quic::Error>(id)
     });
     rslt.unwrap()
   }
@@ -885,7 +885,7 @@ fn graceful_shutdown_drains_in_flight() {
 
 // A program that the kernel refuses: it does not end with a return.
 fn broken_program(_: u8) -> SteeringProgram {
-  [libc::sock_filter { code: 0, jt: 0, jf: 0, k: 0 }; rimu_quic::STEERING_PROGRAM_LEN]
+  [libc::sock_filter { code: 0, jt: 0, jf: 0, k: 0 }; nyseion_quic::STEERING_PROGRAM_LEN]
 }
 
 // Brief step 1 and ruling T14-f: if the steering program can not be attached, the error callback
@@ -945,12 +945,12 @@ type Worker = (QuicEndpoint<H3Server<TestHandler>>, H3Server<TestHandler>);
 
 #[allow(clippy::disallowed_types, reason = "the endpoint takes the standard `Arc`")]
 fn two_workers() -> (Vec<Worker>, std::sync::Arc<WorkerLoads>) {
-  let mut rng = rimu_quic::rng::ChaCha20::from_key([9; 32]);
+  let mut rng = nyseion_quic::rng::ChaCha20::from_key([9; 32]);
   let keys = std::sync::Arc::new(EndpointKeys::new(&mut rng));
   let loads = std::sync::Arc::new(WorkerLoads::new(2));
   let workers = (0..2)
     .map(|worker| {
-      let tls = rimu_h3::testing::server_tls();
+      let tls = nyseion_h3::testing::server_tls();
       let quic = QuicParams::default();
       let endpoint =
         QuicEndpoint::new(quic, worker, 2, tls, &mut rng, Some(loads.clone()), keys.clone())
@@ -963,7 +963,7 @@ fn two_workers() -> (Vec<Worker>, std::sync::Arc<WorkerLoads>) {
 
 // The first datagrams of a new client, as they leave it.
 fn first_flight(server: SocketAddr, now_us: u64) -> Vec<Vec<u8>> {
-  let mut rng = rimu_quic::rng::ChaCha20::from_os().unwrap();
+  let mut rng = nyseion_quic::rng::ChaCha20::from_os().unwrap();
   let params = QuicParams::default();
   let mut client =
     TestClient::new(ClientApp::default(), &params, server, b"h3", &mut rng, now_us).unwrap();
@@ -1452,9 +1452,9 @@ fn manual_routes_and_middlewares_on_h3() {
   let errors = served.errors();
   assert!(errors.len() == 1 && errors[0].contains("OperationModeMismatch"), "{errors:?}");
   let rsp = client.get("/baseline2?a=1&b=1", &[]);
-  assert_eq!((rsp.field(b"server"), rsp.body.as_slice()), (Some(&b"rimu-ws"[..]), &b"2"[..]));
+  assert_eq!((rsp.field(b"server"), rsp.body.as_slice()), (Some(&b"nyseion-ws"[..]), &b"2"[..]));
   let rsp = client.get("/blocked", &[]);
-  assert_eq!((status(&rsp), rsp.field(b"server")), (&b"403"[..], Some(&b"rimu-ws"[..])));
+  assert_eq!((status(&rsp), rsp.field(b"server")), (&b"403"[..], Some(&b"nyseion-ws"[..])));
   assert!(rsp.body.is_empty());
 }
 

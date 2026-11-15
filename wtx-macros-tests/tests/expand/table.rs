@@ -1,4 +1,4 @@
-#[derive(rimu_ws::Table)]
+#[derive(nyseion_ws::Table)]
 pub struct Foo {
     bar: String,
     baz: String,

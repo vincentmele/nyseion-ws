@@ -1,12 +1,12 @@
 //! lifetime in responses
 
-rimu_ws::create_packages_aux_wrapper!();
+nyseion_ws::create_packages_aux_wrapper!();
 
 type Api = ();
 
-#[rimu_ws::pkg(data_format(json), id(super::Api), transport(http))]
+#[nyseion_ws::pkg(data_format(json), id(super::Api), transport(http))]
 mod pkg {
-  use rimu_ws::client_api_framework::network::transport::TransportParams;
+  use nyseion_ws::client_api_framework::network::transport::TransportParams;
 
   #[pkg::aux]
   impl<A, DRSR, TP> super::PkgsAux<A, DRSR, TP>
@@ -17,7 +17,7 @@ mod pkg {
   #[pkg::before_sending]
   async fn before_sending<I>(
     params: &mut FooParams<I>,
-  ) -> rimu_ws::Result<()>
+  ) -> nyseion_ws::Result<()>
   where
     I: Iterator<Item = u64>,
   {
@@ -38,7 +38,7 @@ mod pkg {
 }
 
 fn main() {
-  use rimu_ws::{
+  use nyseion_ws::{
     client_api_framework::misc::Pair,
     client_api_framework::network::{HttpParams, transport::SendingReceivingTransport},
     codec::format::SerdeJson,

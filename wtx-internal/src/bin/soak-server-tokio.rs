@@ -1,4 +1,4 @@
-//! The `rimu-ws-soak` target on tokio, at `127.0.0.1:9080`. Tokio has none of the uring
+//! The `nyseion-ws-soak` target on tokio, at `127.0.0.1:9080`. Tokio has none of the uring
 //! executor's handshake, idle or close timeouts, so run it with the `untimed` profile. The loop,
 //! compression, send buffer, message limit and error logging are in `common/soak_echo.rs`.
 
@@ -7,7 +7,7 @@
 #[path = "common/soak_echo.rs"]
 mod soak_echo;
 
-use rimu_ws::{
+use nyseion_ws::{
   collections::VectorUsize,
   http::WebSocketServerFramework,
   tls::{PlaintextCtx, TlsConfig},
@@ -20,10 +20,10 @@ use soak_echo::{settings, tcp_params};
 use tokio::net::TcpStream;
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let settings = settings();
   eprintln!("soak-server-tokio: {settings:?}");
-  let error_cb: fn(rimu_ws::Error) =
+  let error_cb: fn(nyseion_ws::Error) =
     if settings.log_errors { |error| eprintln!("{error}") } else { |_| {} };
   let framework = WebSocketServerFramework::tokio(TlsConfig::plaintext())?
     .set_error_cb(error_cb)
@@ -38,13 +38,13 @@ async fn main() -> rimu_ws::Result<()> {
 async fn echo(
   buffer: VectorUsize<u8>,
   ws: WebSocket<(), TcpStream, PlaintextCtx, false>,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   soak_echo::echo(buffer, ws).await
 }
 
 async fn echo_deflate(
   buffer: VectorUsize<u8>,
   ws: WebSocket<Option<NegotiatedZlibRs>, TcpStream, PlaintextCtx, false>,
-) -> rimu_ws::Result<()> {
+) -> nyseion_ws::Result<()> {
   soak_echo::echo(buffer, ws).await
 }

@@ -4,5 +4,5 @@
 #![no_main]
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
-  rimu_ws::codec::gzip_check::check_bytes(data);
+  nyseion_ws::codec::gzip_check::check_bytes(data);
 });

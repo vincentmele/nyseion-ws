@@ -1,18 +1,18 @@
 //! Demonstrates different interactions with a PostgreSQL database.
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   database::{DbClient as _, Record, Records},
   misc::into_rslt,
 };
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = rimu_ws_examples::postgres_client(uri).await?;
+  let mut executor = nyseion_ws_examples::postgres_client(uri).await?;
   executor
     .transaction(|this| async {
       this.execute_ignored("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)").await?;
@@ -23,7 +23,7 @@ async fn main() -> rimu_ws::Result<()> {
     })
     .await?;
   let records = executor
-    .execute_stmt_many("SELECT id, name FROM example", (), |_| Ok::<_, rimu_ws::Error>(()))
+    .execute_stmt_many("SELECT id, name FROM example", (), |_| Ok::<_, nyseion_ws::Error>(()))
     .await?;
   let record0 = into_rslt(records.get(0))?;
   let record1 = into_rslt(records.get(1))?;

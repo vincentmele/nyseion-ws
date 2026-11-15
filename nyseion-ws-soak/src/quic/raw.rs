@@ -1,7 +1,7 @@
 //! A minimal raw QUIC packet sender, built on codecs of the harness's own (ruling T23-b): QUIC
 //! varints, long and short headers, the Initial secrets of RFC 9001 section 5.2, AEAD (AES-128-GCM)
 //! and header protection (AES-128-ECB) for the Initial level, and the few frame encoders the abuse
-//! scenarios need. It shares no code with rimu-ws, so a bug the two had in common could not hide.
+//! scenarios need. It shares no code with nyseion-ws, so a bug the two had in common could not hide.
 //!
 //! It reaches the Initial level only: 1-RTT packets need the handshake secrets, which only a full
 //! TLS 1.3 exchange yields, so the scenarios that must speak 1-RTT frames are driven with `quinn`

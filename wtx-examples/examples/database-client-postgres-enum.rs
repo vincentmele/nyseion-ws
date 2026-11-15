@@ -4,10 +4,10 @@
 //! ```
 
 extern crate tokio;
-extern crate rimu_ws;
-extern crate rimu_ws_examples;
+extern crate nyseion_ws;
+extern crate nyseion_ws_examples;
 
-use rimu_ws::{
+use nyseion_ws::{
   codec::{Decode, Encode},
   database::{
     DbClient as _, Record, Typed,
@@ -16,9 +16,9 @@ use rimu_ws::{
 };
 
 #[tokio::main]
-async fn main() -> rimu_ws::Result<()> {
+async fn main() -> nyseion_ws::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = rimu_ws_examples::postgres_client(uri).await?;
+  let mut executor = nyseion_ws_examples::postgres_client(uri).await?;
   executor
     .execute_stmt_none("INSERT INTO custom_enum_table VALUES ($1, $2)", (1, Enum::Bar))
     .await?;
@@ -35,33 +35,33 @@ enum Enum {
   Baz,
 }
 
-impl Decode<'_, Postgres<rimu_ws::Error>> for Enum {
+impl Decode<'_, Postgres<nyseion_ws::Error>> for Enum {
   #[inline]
-  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, rimu_ws::Error> {
-    let string = <&str as Decode<Postgres<rimu_ws::Error>>>::decode(dw)?;
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, nyseion_ws::Error> {
+    let string = <&str as Decode<Postgres<nyseion_ws::Error>>>::decode(dw)?;
     Ok(match string {
       "foo" => Self::Foo,
       "bar" => Self::Bar,
       "baz" => Self::Baz,
-      _ => return Err(rimu_ws::Error::UnexpectedString { length: 3 }),
+      _ => return Err(nyseion_ws::Error::UnexpectedString { length: 3 }),
     })
   }
 }
 
-impl Encode<Postgres<rimu_ws::Error>> for Enum {
+impl Encode<Postgres<nyseion_ws::Error>> for Enum {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), rimu_ws::Error> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), nyseion_ws::Error> {
     let string = match self {
       Self::Foo => "foo",
       Self::Bar => "bar",
       Self::Baz => "baz",
     };
-    <_ as Encode<Postgres<rimu_ws::Error>>>::encode(&string, ew)?;
+    <_ as Encode<Postgres<nyseion_ws::Error>>>::encode(&string, ew)?;
     Ok(())
   }
 }
 
-impl Typed<Postgres<rimu_ws::Error>> for Enum {
+impl Typed<Postgres<nyseion_ws::Error>> for Enum {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
     None

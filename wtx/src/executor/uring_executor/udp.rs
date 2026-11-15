@@ -58,7 +58,7 @@ use core::{
   task::{Context, Poll, Waker},
 };
 use io_uring::{cqueue, opcode, types};
-use rimu_quic::{DatagramMeta, STEERING_PROGRAM_LEN, SteeringProgram, TrainId, TxArena};
+use nyseion_quic::{DatagramMeta, STEERING_PROGRAM_LEN, SteeringProgram, TrainId, TxArena};
 use std::os::fd::{FromRawFd, RawFd};
 
 // A receive buffer starts with what the kernel writes before the payload: its header
@@ -262,7 +262,7 @@ impl UringUdpSocket {
   }
 
   /// Steers the datagrams of the socket's `SO_REUSEPORT` group with `program` (from
-  /// [`rimu_quic::steering_cbpf`]): the program applies to every socket of the group, which
+  /// [`nyseion_quic::steering_cbpf`]): the program applies to every socket of the group, which
   /// it indexes in the order they bound.
   ///
   /// `SO_ATTACH_REUSEPORT_CBPF` exists since Linux 4.5, older than the io_uring this runtime
@@ -1766,7 +1766,7 @@ mod tests {
     task::Poll,
     time::Duration,
   };
-  use rimu_quic::{DatagramMeta, TxArena, steering_cbpf};
+  use nyseion_quic::{DatagramMeta, TxArena, steering_cbpf};
   use std::os::fd::RawFd;
 
   const V4: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
@@ -2808,7 +2808,7 @@ mod miri {
     },
   };
   use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-  use rimu_quic::{DatagramMeta, TxArena};
+  use nyseion_quic::{DatagramMeta, TxArena};
 
   // The flags of a CQE (`IORING_CQE_F_MORE`, `IORING_CQE_F_NOTIF`), which the io-uring crate
   // reads but does not export

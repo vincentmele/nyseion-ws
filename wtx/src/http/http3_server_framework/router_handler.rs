@@ -1,5 +1,5 @@
 //! What answers the requests of the connections of a worker: [`RouterHandler`], the
-//! [`Handler`] of rimu-h3 that runs the router of the HTTP/2 framework, its middlewares and
+//! [`Handler`] of nyseion-h3 that runs the router of the HTTP/2 framework, its middlewares and
 //! endpoints.
 //!
 //! A complete request is copied into a pooled request buffer, the one an [`AutoStream`] holds,
@@ -14,7 +14,7 @@
 //! request through its connection ([`Handler::resume`], ruling T14-d). At most [`MAX_PARKED`]
 //! requests wait at once; past that a request whose handler waits is answered with 503.
 //!
-//! Responses are encoded with the static table of QPACK (rimu-qpack). The field lines of `:status`,
+//! Responses are encoded with the static table of QPACK (nyseion-qpack). The field lines of `:status`,
 //! `content-type`, `content-encoding` and `vary` are kept encoded per combination of their
 //! values (a few of them per worker, the least recently used replaced, the last one used looked
 //! at first, without making its key), the line of `date` once a second; `content-length` and the
@@ -52,9 +52,9 @@ use core::{
   sync::atomic::{AtomicBool, Ordering},
   task::{Context, Poll, Waker},
 };
-use rimu_h3::{Handler, Http3Error, ReqCtx, ReqOutcome, Request as H3Request};
-use rimu_qpack::{encode_static_line, encode_static_prefix};
-use rimu_quic::{BodyRef, ConnHandle, StreamId};
+use nyseion_h3::{Handler, Http3Error, ReqCtx, ReqOutcome, Request as H3Request};
+use nyseion_qpack::{encode_static_line, encode_static_prefix};
+use nyseion_quic::{BodyRef, ConnHandle, StreamId};
 
 /// The requests of a worker whose handlers wait at once, at most.
 ///
@@ -274,7 +274,7 @@ where
     status: StatusCode,
     msg: MsgBufferString,
     shared: Option<SharedBytes>,
-  ) -> rimu_h3::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     let code = u16::from(status);
     let without_length = (100..200).contains(&code) || code == 204 || code == 304;
     let body_len = shared.as_ref().map_or(msg.body.len(), SharedBytes::len);
@@ -309,13 +309,13 @@ where
     head: bool,
     status: StatusCode,
     mut msg: MsgBufferString,
-  ) -> rimu_h3::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     msg.clear();
     self.answer(cx, head, status, msg, None)
   }
 
   // Polls the future of slot `idx`, in the context of its request.
-  fn poll(&mut self, cx: &mut ReqCtx<'_, '_>, idx: u32) -> rimu_h3::Result<ReqOutcome> {
+  fn poll(&mut self, cx: &mut ReqCtx<'_, '_>, idx: u32) -> nyseion_h3::Result<ReqOutcome> {
     match self.slots.poll(idx) {
       SlotPoll::Pending => {
         if self.slots.len <= MAX_PARKED {
@@ -355,15 +355,15 @@ where
     }
   }
 
-  // The error of rimu-h3 for an error of rimu-ws in a callback (ruling R6 of the rimu-quic
+  // The error of nyseion-h3 for an error of nyseion-ws in a callback (ruling R6 of the nyseion-quic
   // integration): the stream is reset with `H3_INTERNAL_ERROR`; an error that is not a buffer
   // that could not grow goes to the error callback first.
-  fn h3_error(&self, err: crate::Error) -> rimu_h3::Error {
+  fn h3_error(&self, err: crate::Error) -> nyseion_h3::Error {
     if !matches!(err, crate::Error::Vector(_)) {
       cold_path();
       (self.error_cb)(err.into());
     }
-    rimu_h3::Error::Http3(Http3Error::OutOfMemory)
+    nyseion_h3::Error::Http3(Http3Error::OutOfMemory)
   }
 
   // A request buffer of the pool, or a new one with room for the fields and the URI of most
@@ -403,7 +403,7 @@ where
     &mut self,
     cx: &mut ReqCtx<'_, '_>,
     req: &H3Request<'_>,
-  ) -> rimu_h3::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     self.counters.requests = self.counters.requests.wrapping_add(1);
     let mut msg = self.take_msg().map_err(|err| self.h3_error(err))?;
     let head = req.method == b"HEAD";
@@ -434,7 +434,7 @@ where
   }
 
   #[inline]
-  fn resume(&mut self, cx: &mut ReqCtx<'_, '_>, stream: StreamId) -> rimu_h3::Result<ReqOutcome> {
+  fn resume(&mut self, cx: &mut ReqCtx<'_, '_>, stream: StreamId) -> nyseion_h3::Result<ReqOutcome> {
     let conn = cx.conn();
     let idx = self
       .resuming
@@ -1036,7 +1036,7 @@ mod tests {
     http3_server_framework::router_handler::{Known, ResponseHead, known},
   };
   use alloc::{vec, vec::Vec};
-  use rimu_qpack::encode_static;
+  use nyseion_qpack::encode_static;
 
   // The fields of the encoder as one comparison after the other found them before ruling T16-a.
   fn known_one_by_one(name: &[u8]) -> Option<Known> {
@@ -1138,11 +1138,11 @@ mod tests {
       (StatusCode::NotFound, &[], &[(b":status", b"404")]),
       (
         StatusCode::Ok,
-        &[("Server", "rimu"), ("content-type", "text/plain"), ("content-type", "x/y")],
+        &[("Server", "nyseion"), ("content-type", "text/plain"), ("content-type", "x/y")],
         &[
           (b":status", b"200"),
           (b"content-type", b"text/plain"),
-          (b"server", b"rimu"),
+          (b"server", b"nyseion"),
           (b"content-type", b"x/y"),
         ],
       ),
@@ -1175,13 +1175,13 @@ mod tests {
   fn sections_with_date_length_and_long_values_match_the_static_encoding() {
     let long = "x".repeat(600);
     let mut date = Vec::new();
-    rimu_qpack::encode_static_line(b"date", b"Mon, 09 Nov 2026 12:00:00 GMT", &mut date);
+    nyseion_qpack::encode_static_line(b"date", b"Mon, 09 Nov 2026 12:00:00 GMT", &mut date);
     let mut head = ResponseHead::new();
     for round in 0..3 {
       for (content_type, length, with_date) in
         [("text/plain", Some(17), true), (long.as_str(), Some(5), false), ("a/b", None, true)]
       {
-        let fields = headers(&[("content-type", content_type), ("server", "rimu")]);
+        let fields = headers(&[("content-type", content_type), ("server", "nyseion")]);
         let date_line = with_date.then_some(date.as_slice());
         let section = head.encode(StatusCode::Ok, &fields, length, date_line).to_vec();
         let mut expected = Vec::new();
@@ -1194,7 +1194,7 @@ mod tests {
         if let Some(elem) = &length_text {
           lines.push((b"content-length", elem.as_bytes()));
         }
-        lines.push((b"server", b"rimu"));
+        lines.push((b"server", b"nyseion"));
         encode_static(&lines, &mut expected);
         assert_eq!(section, expected.as_slice(), "round {round} {content_type:.10}");
       }

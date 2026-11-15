@@ -240,7 +240,7 @@ async fn lookup_on_thread(query: Query) -> crate::Result<vec::IntoIter<SocketAdd
 
   let shared = crate::sync::Arc::new(Mutex::new(Shared::default()));
   let thread_shared = shared.clone();
-  let _jh = std::thread::Builder::new().name("rimu-ws-resolve".into()).spawn(move || {
+  let _jh = std::thread::Builder::new().name("nyseion-ws-resolve".into()).spawn(move || {
     let rslt = query.resolve();
     let waker = {
       let mut guard = thread_shared.lock().unwrap_or_else(PoisonError::into_inner);

@@ -1,8 +1,8 @@
-//! `rimu-ws-soak run ...` soaks a server; `rimu-ws-soak replay SEED:SLOT:GEN ...` reruns one
+//! `nyseion-ws-soak run ...` soaks a server; `nyseion-ws-soak replay SEED:SLOT:GEN ...` reruns one
 //! scenario run alone and prints its transcript.
 
 use clap::Parser as _;
-use rimu_ws_soak::{
+use nyseion_ws_soak::{
   conn::ConnOpts,
   cycle::{self, CycleConfig, Extended, RecordMode},
   runner::{RunConfig, parse_replay, replay},
@@ -404,7 +404,7 @@ async fn run_h3(args: H3Args) -> Result<ExitCode, String> {
   let mut out = std::io::BufWriter::new(
     std::fs::File::create(&out_path).map_err(|err| format!("{}: {err}", out_path.display()))?,
   );
-  let cfg = rimu_ws_soak::quic::driver::H3Config {
+  let cfg = nyseion_ws_soak::quic::driver::H3Config {
     main_addr,
     main_pid: args.pid,
     idle_addr,
@@ -417,7 +417,7 @@ async fn run_h3(args: H3Args) -> Result<ExitCode, String> {
     main_workers: args.workers,
     memlock_kib: memlock_kib(),
   };
-  let fails = rimu_ws_soak::quic::driver::run(cfg, &mut out).await;
+  let fails = nyseion_ws_soak::quic::driver::run(cfg, &mut out).await;
   use std::io::Write as _;
   out.flush().map_err(|err| format!("{}: {err}", out_path.display()))?;
   eprintln!("h3 soak: {fails} failures; {}", out_path.display());

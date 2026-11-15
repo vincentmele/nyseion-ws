@@ -1,7 +1,7 @@
 //! Creates the configuration file used by the BoringSSL's testsuite.
 
 use std::fs;
-use rimu_ws::collections::{HashMap, VectorUsize};
+use nyseion_ws::collections::{HashMap, VectorUsize};
 
 fn main() {
   let config =

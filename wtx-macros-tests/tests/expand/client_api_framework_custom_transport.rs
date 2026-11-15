@@ -1,6 +1,6 @@
 //! Custom transport through `transport(Custom)`.
 
-use rimu_ws::client_api_framework::{
+use nyseion_ws::client_api_framework::{
   network::{
     transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
     TransportGroup,
@@ -75,7 +75,7 @@ impl TransportParams for CustomTransportParams {
 
 type Nothing = ();
 
-#[rimu_ws::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransportParams)))]
+#[nyseion_ws::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransportParams)))]
 mod pkg {
   #[pkg::req_data]
   struct Req;
