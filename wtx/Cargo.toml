@@ -28,11 +28,11 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 nyseion-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
-# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0): nyseion-quic and nyseion-h3 at 061a695,
-# nyseion-qpack at e5bbbad (14 Nov 2026)
-nyseion-h3 = { default-features = false, features = ["rustls", "std"], optional = true, path = "../../nyseion-quic/nyseion-h3" }
-nyseion-qpack = { default-features = false, features = ["std"], optional = true, path = "../../nyseion-qpack" }
-nyseion-quic = { default-features = false, features = ["rustls"], optional = true, path = "../../nyseion-quic/nyseion-quic" }
+# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0), from github.com/nyseion; Cargo.lock pins
+# the commits
+nyseion-h3 = { default-features = false, features = ["rustls", "std"], optional = true, git = "https://github.com/nyseion/nyseion-quic" }
+nyseion-qpack = { default-features = false, features = ["std"], optional = true, git = "https://github.com/nyseion/nyseion-qpack" }
+nyseion-quic = { default-features = false, features = ["rustls"], optional = true, git = "https://github.com/nyseion/nyseion-quic" }
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
@@ -69,7 +69,7 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 miniz_oxide = { default-features = false, features = ["with-alloc"], version = "0.8" }
 # The in-process HTTP/3 harness of nyseion-h3 (its test client's application and response parser),
 # for the tests of the HTTP/3 server framework
-nyseion-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], path = "../../nyseion-quic/nyseion-h3" }
+nyseion-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], git = "https://github.com/nyseion/nyseion-quic" }
 nyseion-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]

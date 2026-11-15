@@ -1543,6 +1543,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "nyseion-h3"
+version = "0.1.0"
+source = "git+https://github.com/nyseion/nyseion-quic#ac0b89d515011fcea1585076389c506f86d67020"
+dependencies = [
+ "nyseion-qpack",
+ "nyseion-quic",
+]
+
+[[package]]
+name = "nyseion-qpack"
+version = "0.1.0"
+source = "git+https://github.com/nyseion/nyseion-qpack#4ed5553f6e7153cb51274a375bcf8f55ab93f2b8"
+
+[[package]]
+name = "nyseion-quic"
+version = "0.1.0"
+source = "git+https://github.com/nyseion/nyseion-quic#ac0b89d515011fcea1585076389c506f86d67020"
+dependencies = [
+ "aws-lc-rs",
+ "foldhash",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
+ "libc",
+ "rand_chacha",
+ "rand_core 0.9.5",
+ "ring",
+ "rustls",
+]
+
+[[package]]
 name = "nyseion-ws"
 version = "0.52.1"
 dependencies = [
@@ -1564,7 +1594,7 @@ dependencies = [
  "foldhash",
  "getrandom 0.4.3",
  "graviola",
- "hashbrown",
+ "hashbrown 0.17.1",
  "hkdf 0.13.0",
  "hmac 0.13.0",
  "httparse",
@@ -1572,6 +1602,9 @@ dependencies = [
  "libc",
  "memchr",
  "miniz_oxide",
+ "nyseion-h3",
+ "nyseion-qpack",
+ "nyseion-quic",
  "nyseion-ws",
  "nyseion-ws-macros",
  "p256",
@@ -2098,180 +2131,6 @@ checksum = "b4a459cddafb3fe76b31fd8f1108007566c40301feb64dc7b54656eb7388172b"
 dependencies = [
  "crypto-bigint",
  "hmac 0.13.0",
-]
-
-[[package]]
-name = "nyseion-h3"
-version = "0.1.0"
-dependencies = [
- "nyseion-qpack",
- "nyseion-quic",
-]
-
-[[package]]
-name = "nyseion-qpack"
-version = "0.1.0"
-
-[[package]]
-name = "nyseion-quic"
-version = "0.1.0"
-dependencies = [
- "aws-lc-rs",
- "foldhash",
- "getrandom 0.3.4",
- "hashbrown 0.16.1",
- "libc",
- "rand_chacha",
- "rand_core 0.9.5",
- "ring",
- "rustls",
-]
-
-[[package]]
-name = "nyseion-ws"
-version = "0.52.1"
-dependencies = [
- "aead 0.6.1",
- "aes 0.9.3",
- "aes-gcm 0.11.1",
- "arbitrary",
- "argon2",
- "aws-lc-rs",
- "chacha20",
- "chacha20poly1305",
- "crossbeam-channel",
- "crypto-common 0.2.2",
- "digest 0.11.3",
- "ed25519-dalek",
- "elliptic-curve",
- "embassy-net",
- "embassy-time",
- "foldhash",
- "getrandom 0.4.3",
- "graviola",
- "hashbrown 0.17.1",
- "hkdf 0.13.0",
- "hmac 0.13.0",
- "httparse",
- "io-uring",
- "libc",
- "memchr",
- "miniz_oxide",
- "p256",
- "p384",
- "parking_lot",
- "pin-project-lite",
- "pkcs1",
- "pkcs8",
- "portable-atomic",
- "portable-atomic-util",
- "quick-protobuf",
- "quick-xml",
- "rand_core 0.10.1",
- "nyseion-h3",
- "nyseion-qpack",
- "nyseion-quic",
- "nyseion-ws",
- "nyseion-ws-macros",
- "ring",
- "rsa",
- "rust_decimal",
- "serde",
- "serde_json",
- "sha1",
- "sha2 0.11.1",
- "sha3",
- "signature",
- "simdutf8",
- "socket2",
- "spki",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "tracing-tree",
- "uuid",
- "x25519-dalek",
- "zip",
- "zlib-rs",
- "zmij",
-]
-
-[[package]]
-name = "nyseion-ws-examples"
-version = "0.0.0"
-dependencies = [
- "pb-rs",
- "quick-protobuf",
- "nyseion-ws",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "nyseion-ws-fuzz"
-version = "0.0.0"
-dependencies = [
- "libfuzzer-sys",
- "nyseion-ws",
-]
-
-[[package]]
-name = "nyseion-ws-internal"
-version = "0.0.0"
-dependencies = [
- "brotli",
- "libc",
- "nyseion-ws",
- "serde",
- "serde_json",
- "tokio",
- "zlib-rs",
-]
-
-[[package]]
-name = "nyseion-ws-macros"
-version = "0.12.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
-]
-
-[[package]]
-name = "nyseion-ws-soak"
-version = "0.1.0"
-dependencies = [
- "aes 0.8.4",
- "aes-gcm 0.10.3",
- "base64",
- "bytes",
- "clap",
- "futures-util",
- "h3",
- "h3-quinn",
- "hdrhistogram",
- "hkdf 0.12.4",
- "http",
- "libc",
- "quinn",
- "rand 0.9.5",
- "rand_chacha",
- "rustls",
- "serde",
- "serde_json",
- "sha1_smol",
- "sha2 0.10.9",
- "tokio",
-]
-
-[[package]]
-name = "nyseion-ws-ui"
-version = "0.8.3"
-dependencies = [
- "clap",
- "nyseion-ws",
- "tokio",
 ]
 
 [[package]]
