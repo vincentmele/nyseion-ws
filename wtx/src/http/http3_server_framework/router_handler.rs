@@ -1,5 +1,6 @@
 //! What answers the requests of the connections of a worker: [`RouterHandler`], the
-//! [`H3Handler`] that runs the router of the HTTP/2 framework, its middlewares and endpoints.
+//! [`Handler`] of nyseion-h3 that runs the router of the HTTP/2 framework, its middlewares and
+//! endpoints.
 //!
 //! A complete request is copied into a pooled request buffer, the one an [`AutoStream`] holds,
 //! with a fresh clone of the data of the server, as on HTTP/2, or, with `reuse_data` (an opt-in,
@@ -10,10 +11,10 @@
 //! inside `catch_unwind`: a panic answers 500 on that stream only (spec section 5.12). A future
 //! that completes is answered at once; one that waits is parked in its slot, whose waker records
 //! the slot in a bounded queue of the worker and wakes the endpoint task, which resumes the
-//! request through its connection ([`H3Handler::resume`], ruling T14-d). At most [`MAX_PARKED`]
+//! request through its connection ([`Handler::resume`], ruling T14-d). At most [`MAX_PARKED`]
 //! requests wait at once; past that a request whose handler waits is answered with 503.
 //!
-//! Responses are encoded with the static table of QPACK. The field lines of `:status`,
+//! Responses are encoded with the static table of QPACK (nyseion-qpack). The field lines of `:status`,
 //! `content-type`, `content-encoding` and `vary` are kept encoded per combination of their
 //! values (a few of them per worker, the least recently used replaced, the last one used looked
 //! at first, without making its key), the line of `date` once a second; `content-length` and the
@@ -40,12 +41,10 @@ use crate::{
     },
     http3_server_framework::Http3ManualStream,
   },
-  http3::{H3Handler, H3ReqCtx, H3Request, ReqOutcome, encode_static_line, encode_static_prefix},
   misc::{SharedBytes, from_utf8_basic},
-  quic::{BodyRef, ConnHandle, StreamId},
   sync::{Arc, AtomicU64, AtomicWaker, SyncMutex},
 };
-use alloc::{boxed::Box, rc::Rc};
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{
   hint::cold_path,
   panic::AssertUnwindSafe,
@@ -53,6 +52,9 @@ use core::{
   sync::atomic::{AtomicBool, Ordering},
   task::{Context, Poll, Waker},
 };
+use nyseion_h3::{Handler, Http3Error, ReqCtx, ReqOutcome, Request as H3Request};
+use nyseion_qpack::{encode_static_line, encode_static_prefix};
+use nyseion_quic::{BodyRef, ConnHandle, StreamId};
 
 /// The requests of a worker whose handlers wait at once, at most.
 ///
@@ -267,12 +269,12 @@ where
   // module documentation).
   fn answer(
     &mut self,
-    cx: &mut H3ReqCtx<'_, '_>,
+    cx: &mut ReqCtx<'_, '_>,
     head: bool,
     status: StatusCode,
     msg: MsgBufferString,
     shared: Option<SharedBytes>,
-  ) -> crate::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     let code = u16::from(status);
     let without_length = (100..200).contains(&code) || code == 204 || code == 304;
     let body_len = shared.as_ref().map_or(msg.body.len(), SharedBytes::len);
@@ -284,13 +286,17 @@ where
       None
     };
     let date = self.date.as_ref().map(DateLine::line);
-    let rslt = match self.head.encode(status, &msg.headers, length, date) {
-      Ok(section) if head || without_length => cx.respond(section, &[]),
-      Ok(section) => match shared {
-        Some(body) => BodyRef::try_from(body).and_then(|el| cx.respond_body(section, el)),
+    let section = self.head.encode(status, &msg.headers, length, date);
+    let rslt = if head || without_length {
+      cx.respond(section, &[])
+    } else {
+      match shared {
+        Some(body) => match BodyRef::try_from(body.into_quic()) {
+          Ok(elem) => cx.respond_body(section, elem),
+          Err(err) => Err(err.into()),
+        },
         None => cx.respond(section, msg.body.as_slice()),
-      },
-      Err(err) => Err(err),
+      }
     };
     self.recycle(msg);
     rslt.map(|()| ReqOutcome::Responded)
@@ -299,17 +305,17 @@ where
   // Answers a request, of `HEAD` if `head`, with `status` and nothing else of `msg`.
   fn answer_plain(
     &mut self,
-    cx: &mut H3ReqCtx<'_, '_>,
+    cx: &mut ReqCtx<'_, '_>,
     head: bool,
     status: StatusCode,
     mut msg: MsgBufferString,
-  ) -> crate::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     msg.clear();
     self.answer(cx, head, status, msg, None)
   }
 
   // Polls the future of slot `idx`, in the context of its request.
-  fn poll(&mut self, cx: &mut H3ReqCtx<'_, '_>, idx: u32) -> crate::Result<ReqOutcome> {
+  fn poll(&mut self, cx: &mut ReqCtx<'_, '_>, idx: u32) -> nyseion_h3::Result<ReqOutcome> {
     match self.slots.poll(idx) {
       SlotPoll::Pending => {
         if self.slots.len <= MAX_PARKED {
@@ -319,7 +325,7 @@ where
         self.slots.release(idx);
         self.counters.park_refused = self.counters.park_refused.wrapping_add(1);
         // Without content: the same for HEAD as for the other methods
-        let msg = self.take_msg()?;
+        let msg = self.take_msg().map_err(|err| self.h3_error(err))?;
         self.answer_plain(cx, false, StatusCode::ServiceUnavailable, msg)
       }
       SlotPoll::Done((auto_stream, rslt)) => {
@@ -343,10 +349,21 @@ where
       SlotPoll::Panicked => {
         cold_path();
         self.counters.panics = self.counters.panics.wrapping_add(1);
-        let msg = self.take_msg()?;
+        let msg = self.take_msg().map_err(|err| self.h3_error(err))?;
         self.answer_plain(cx, false, StatusCode::InternalServerError, msg)
       }
     }
+  }
+
+  // The error of nyseion-h3 for an error of nyseion-ws in a callback (ruling R6 of the nyseion-quic
+  // integration): the stream is reset with `H3_INTERNAL_ERROR`; an error that is not a buffer
+  // that could not grow goes to the error callback first.
+  fn h3_error(&self, err: crate::Error) -> nyseion_h3::Error {
+    if !matches!(err, crate::Error::Vector(_)) {
+      cold_path();
+      (self.error_cb)(err.into());
+    }
+    nyseion_h3::Error::Http3(Http3Error::OutOfMemory)
   }
 
   // A request buffer of the pool, or a new one with room for the fields and the URI of most
@@ -376,7 +393,7 @@ where
   }
 }
 
-impl<D, EC> H3Handler for RouterHandler<D, EC>
+impl<D, EC> Handler for RouterHandler<D, EC>
 where
   D: AutoDispatch,
   EC: Fn(D::Err),
@@ -384,11 +401,11 @@ where
   #[inline]
   fn on_request(
     &mut self,
-    cx: &mut H3ReqCtx<'_, '_>,
+    cx: &mut ReqCtx<'_, '_>,
     req: &H3Request<'_>,
-  ) -> crate::Result<ReqOutcome> {
+  ) -> nyseion_h3::Result<ReqOutcome> {
     self.counters.requests = self.counters.requests.wrapping_add(1);
-    let mut msg = self.take_msg()?;
+    let mut msg = self.take_msg().map_err(|err| self.h3_error(err))?;
     let head = req.method == b"HEAD";
     let method = match fill_request(&mut msg, req) {
       Ok(elem) => elem,
@@ -412,12 +429,12 @@ where
     // buffers, it allocates nothing)
     let auto_stream = AutoStream::new(data, cx.peer(), None, Request::new(method, msg));
     let fut = self.dispatch.call(auto_stream, matches);
-    let idx = self.slots.insert(fut, cx.conn(), req.stream)?;
+    let idx = self.slots.insert(fut, cx.conn(), req.stream).map_err(|err| self.h3_error(err))?;
     self.poll(cx, idx)
   }
 
   #[inline]
-  fn resume(&mut self, cx: &mut H3ReqCtx<'_, '_>, stream: StreamId) -> crate::Result<ReqOutcome> {
+  fn resume(&mut self, cx: &mut ReqCtx<'_, '_>, stream: StreamId) -> nyseion_h3::Result<ReqOutcome> {
     let conn = cx.conn();
     let idx = self
       .resuming
@@ -426,7 +443,7 @@ where
       .or_else(|| self.slots.find(conn, stream));
     let Some(idx) = idx else {
       cold_path();
-      return Err(crate::Error::ProgrammingError);
+      return Err(self.h3_error(crate::Error::ProgrammingError));
     };
     self.poll(cx, idx)
   }
@@ -499,13 +516,13 @@ fn fill_request(msg: &mut MsgBufferString, req: &H3Request<'_>) -> Result<Method
 
 /// The `date` field line of the responses, encoded again when the second changes.
 struct DateLine {
-  line: VectorUsize<u8>,
+  line: Vec<u8>,
   secs: u64,
 }
 
 impl DateLine {
   fn new() -> crate::Result<Self> {
-    let mut this = Self { line: VectorUsize::new(), secs: u64::MAX };
+    let mut this = Self { line: Vec::new(), secs: u64::MAX };
     this.refresh()?;
     Ok(this)
   }
@@ -526,38 +543,39 @@ impl DateLine {
     let mut text = [0; 29];
     format_imf_fixdate(secs, &mut text);
     self.line.clear();
-    encode_static_line(b"date", &text, &mut self.line)
+    encode_static_line(b"date", &text, &mut self.line);
+    Ok(())
   }
 }
 
 /// The field lines of `:status`, `content-type`, `content-encoding` and `vary` of a combination of
 /// their values.
 struct Block {
-  key: VectorUsize<u8>,
+  key: Vec<u8>,
   last_use: u64,
-  lines: VectorUsize<u8>,
+  lines: Vec<u8>,
 }
 
 /// What encodes the field sections of the responses of a worker: see the
 /// [module documentation](self).
 struct ResponseHead {
-  blocks: VectorUsize<Block>,
-  key: VectorUsize<u8>,
+  blocks: Vec<Block>,
+  key: Vec<u8>,
   // The block used last
   last: Option<usize>,
-  lower: VectorUsize<u8>,
-  section: VectorUsize<u8>,
+  lower: Vec<u8>,
+  section: Vec<u8>,
   uses: u64,
 }
 
 impl ResponseHead {
   const fn new() -> Self {
     Self {
-      blocks: VectorUsize::new(),
-      key: VectorUsize::new(),
+      blocks: Vec::new(),
+      key: Vec::new(),
       last: None,
-      lower: VectorUsize::new(),
-      section: VectorUsize::new(),
+      lower: Vec::new(),
+      section: Vec::new(),
       uses: 0,
     }
   }
@@ -570,7 +588,7 @@ impl ResponseHead {
     headers: &Headers,
     length: Option<usize>,
     date: Option<&[u8]>,
-  ) -> crate::Result<&[u8]> {
+  ) -> &[u8] {
     let [mut content_type, mut content_encoding, mut vary] = [None; 3];
     // If a field is left for the second pass below
     let mut others = false;
@@ -592,22 +610,22 @@ impl ResponseHead {
       }
     }
     self.section.clear();
-    encode_static_prefix(&mut self.section)?;
+    encode_static_prefix(&mut self.section);
     let fields = [content_type, content_encoding, vary];
-    let idx = self.block(u16::from(status), fields)?;
+    let idx = self.block(u16::from(status), fields);
     match idx.and_then(|el| self.blocks.get(el)) {
-      Some(block) => self.section.extend_from_copyable_slice(block.lines.as_slice())?,
-      None => write_block(u16::from(status), fields, &mut self.section)?,
+      Some(block) => self.section.extend_from_slice(block.lines.as_slice()),
+      None => write_block(u16::from(status), fields, &mut self.section),
     }
     if let Some(elem) = date {
-      self.section.extend_from_copyable_slice(elem)?;
+      self.section.extend_from_slice(elem);
     }
     if let Some(elem) = length {
       let mut digits = [0u8; 20];
-      encode_static_line(b"content-length", decimal(elem, &mut digits), &mut self.section)?;
+      encode_static_line(b"content-length", decimal(elem, &mut digits), &mut self.section);
     }
     if !others {
-      return Ok(self.section.as_slice());
+      return self.section.as_slice();
     }
     let mut firsts = [true; 3];
     for header in headers.iter() {
@@ -628,24 +646,24 @@ impl ResponseHead {
       }
       let name = if name.iter().any(u8::is_ascii_uppercase) {
         self.lower.clear();
-        self.lower.extend_from_copyable_slice(name)?;
-        self.lower.as_slice_mut().make_ascii_lowercase();
+        self.lower.extend_from_slice(name);
+        self.lower.make_ascii_lowercase();
         self.lower.as_slice()
       } else {
         name
       };
-      encode_static_line(name, header.value.as_bytes(), &mut self.section)?;
+      encode_static_line(name, header.value.as_bytes(), &mut self.section);
     }
-    Ok(self.section.as_slice())
+    self.section.as_slice()
   }
 
   // The index of the block of `status` and `fields`, encoded now if it was not; `None` for values
   // too long to keep.
-  fn block(&mut self, status: u16, fields: [Option<&[u8]>; 3]) -> crate::Result<Option<usize>> {
+  fn block(&mut self, status: u16, fields: [Option<&[u8]>; 3]) -> Option<usize> {
     self.uses = self.uses.wrapping_add(1);
     let values = fields.iter().flatten().map(|el| el.len()).sum::<usize>();
     if values > MAX_BLOCK_KEY {
-      return Ok(None);
+      return None;
     }
     // The last block used first, then the others, compared without making the key
     let last = self.last.filter(|el| {
@@ -658,33 +676,31 @@ impl ResponseHead {
         block.last_use = self.uses;
       }
       self.last = Some(idx);
-      return Ok(Some(idx));
+      return Some(idx);
     }
     self.key.clear();
-    self.key.extend_from_copyable_slice(&status.to_be_bytes())?;
+    self.key.extend_from_slice(&status.to_be_bytes());
     for field in fields {
       let len = field.map_or(u16::MAX, |el| u16::try_from(el.len()).unwrap_or(u16::MAX));
-      self.key.extend_from_copyable_slice(&len.to_be_bytes())?;
-      self.key.extend_from_copyable_slice(field.unwrap_or_default())?;
+      self.key.extend_from_slice(&len.to_be_bytes());
+      self.key.extend_from_slice(field.unwrap_or_default());
     }
     let idx = if self.blocks.len() < MAX_BLOCKS {
-      let block = Block { key: VectorUsize::new(), last_use: 0, lines: VectorUsize::new() };
-      self.blocks.push(block)?;
+      let block = Block { key: Vec::new(), last_use: 0, lines: Vec::new() };
+      self.blocks.push(block);
       self.blocks.len().wrapping_sub(1)
     } else {
       let oldest = self.blocks.iter().enumerate().min_by_key(|el| el.1.last_use).map(|el| el.0);
       oldest.unwrap_or(0)
     };
-    let Some(block) = self.blocks.get_mut(idx) else {
-      return Ok(None);
-    };
+    let block = self.blocks.get_mut(idx)?;
     block.key.clear();
-    block.key.extend_from_copyable_slice(self.key.as_slice())?;
+    block.key.extend_from_slice(self.key.as_slice());
     block.lines.clear();
     block.last_use = self.uses;
-    write_block(status, fields, &mut block.lines)?;
+    write_block(status, fields, &mut block.lines);
     self.last = Some(idx);
-    Ok(Some(idx))
+    Some(idx)
   }
 }
 
@@ -745,18 +761,17 @@ fn known(name: &[u8]) -> Option<Known> {
 fn write_block(
   status: u16,
   [content_type, content_encoding, vary]: [Option<&[u8]>; 3],
-  out: &mut VectorUsize<u8>,
-) -> crate::Result<()> {
+  out: &mut Vec<u8>,
+) {
   let mut digits = [0u8; 20];
-  encode_static_line(b":status", decimal(status.into(), &mut digits), out)?;
+  encode_static_line(b":status", decimal(status.into(), &mut digits), out);
   for (name, value) in
     [(&b"content-type"[..], content_type), (b"content-encoding", content_encoding), (b"vary", vary)]
   {
     if let Some(elem) = value {
-      encode_static_line(name, elem, out)?;
+      encode_static_line(name, elem, out);
     }
   }
-  Ok(())
 }
 
 // `value` in decimal digits, written at the end of `buffer`.
@@ -1016,15 +1031,12 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{
-    collections::VectorUsize,
-    http::{
-      Header, Headers, KnownHeaderName, StatusCode,
-      http3_server_framework::router_handler::{Known, ResponseHead, known},
-    },
-    http3::encode_static,
+  use crate::http::{
+    Header, Headers, KnownHeaderName, StatusCode,
+    http3_server_framework::router_handler::{Known, ResponseHead, known},
   };
   use alloc::{vec, vec::Vec};
+  use nyseion_qpack::encode_static;
 
   // The fields of the encoder as one comparison after the other found them before ruling T16-a.
   fn known_one_by_one(name: &[u8]) -> Option<Known> {
@@ -1146,13 +1158,13 @@ mod tests {
       ),
     ];
     let mut head = ResponseHead::new();
-    let mut expected = VectorUsize::new();
+    let mut expected = Vec::new();
     let order: Vec<usize> = (0..4).flat_map(|_| [0, 0, 1, 2, 0, 3, 4, 5, 1, 1, 5]).collect();
     for idx in order {
       let (status, fields, lines) = cases[idx];
       expected.clear();
-      encode_static(lines, &mut expected).unwrap();
-      let section = head.encode(status, &headers(fields), None, None).unwrap();
+      encode_static(lines, &mut expected);
+      let section = head.encode(status, &headers(fields), None, None);
       assert_eq!(section, expected.as_slice(), "case {idx}");
     }
   }
@@ -1162,8 +1174,8 @@ mod tests {
   #[test]
   fn sections_with_date_length_and_long_values_match_the_static_encoding() {
     let long = "x".repeat(600);
-    let mut date = VectorUsize::new();
-    crate::http3::encode_static_line(b"date", b"Mon, 09 Nov 2026 12:00:00 GMT", &mut date).unwrap();
+    let mut date = Vec::new();
+    nyseion_qpack::encode_static_line(b"date", b"Mon, 09 Nov 2026 12:00:00 GMT", &mut date);
     let mut head = ResponseHead::new();
     for round in 0..3 {
       for (content_type, length, with_date) in
@@ -1171,8 +1183,8 @@ mod tests {
       {
         let fields = headers(&[("content-type", content_type), ("server", "nyseion")]);
         let date_line = with_date.then_some(date.as_slice());
-        let section = head.encode(StatusCode::Ok, &fields, length, date_line).unwrap().to_vec();
-        let mut expected = VectorUsize::new();
+        let section = head.encode(StatusCode::Ok, &fields, length, date_line).to_vec();
+        let mut expected = Vec::new();
         let length_text = length.map(|el: usize| alloc::format!("{el}"));
         let mut lines: Vec<(&[u8], &[u8])> =
           vec![(b":status", b"200"), (b"content-type", content_type.as_bytes())];
@@ -1183,7 +1195,7 @@ mod tests {
           lines.push((b"content-length", elem.as_bytes()));
         }
         lines.push((b"server", b"nyseion"));
-        encode_static(&lines, &mut expected).unwrap();
+        encode_static(&lines, &mut expected);
         assert_eq!(section, expected.as_slice(), "round {round} {content_type:.10}");
       }
     }
@@ -1211,13 +1223,13 @@ mod tests {
       .collect();
     let mut head = ResponseHead::new();
     for fields in &all {
-      let _ = head.encode(StatusCode::Ok, fields, None, None).unwrap();
+      let _ = head.encode(StatusCode::Ok, fields, None, None);
     }
     // Every combination has its block: none is replaced, whatever the order of the rounds
     assert_eq!(head.blocks.len(), all.len());
     crate::tests::_count_allocations_in(&ALLOCS);
     for fields in all.iter().chain(all.iter().rev()) {
-      let _ = head.encode(StatusCode::Ok, fields, None, None).unwrap();
+      let _ = head.encode(StatusCode::Ok, fields, None, None);
     }
     crate::tests::_count_allocations_in(&crate::tests::_ALLOCATIONS);
     assert_eq!(ALLOCS.load(core::sync::atomic::Ordering::Relaxed), 0);

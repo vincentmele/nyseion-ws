@@ -36,8 +36,8 @@ use nyseion_ws::{
     http2_server_framework::{Get, HttpRouter, State, StaticFiles, VerbatimParams, get, post},
     http3_server_framework::{Http3ServerFramework, Http3Stats},
   },
+  quic::rustls::RustlsConfig,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::TlsConfig,
 };
 use std::{alloc::System, sync::OnceLock};
 
@@ -129,10 +129,15 @@ fn main() -> nyseion_ws::Result<()> {
     "soak-server-h3: {addr}, static {dir}, cert {cert_dir}, alloc_stats {}",
     ALLOC_STATS.load(Ordering::Relaxed)
   );
-  let framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
+  let tls = RustlsConfig::builder()
+    .cert_chain_pem(&cert)
+    .private_key_pem(&key)
+    .build()
+    .map_err(|err| nyseion_ws::Error::from(std::io::Error::other(err)))?;
+  let framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
-    TlsConfig::from_keys_pem(&cert, key.as_slice())?,
+    tls,
   )?
   .set_error_cb(error_cb)
   .set_pin_workers(false)

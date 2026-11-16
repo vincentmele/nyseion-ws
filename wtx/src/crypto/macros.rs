@@ -91,30 +91,6 @@ macro_rules! common_aead_key_functions {
 }
 
 #[cfg(any(feature = "crypto-alr", feature = "crypto-ring"))]
-macro_rules! common_hp_key_functions {
-  () => {
-    #[inline]
-    fn local_new_hp(
-      algorithm: &'static Algorithm,
-      key: &[u8],
-    ) -> crate::Result<HeaderProtectionKey> {
-      HeaderProtectionKey::new(algorithm, key).map_err(|_err| {
-        core::hint::cold_path();
-        crate::Error::from(CryptoError::InvalidHeaderProtection)
-      })
-    }
-
-    #[inline]
-    fn local_mask_hp(key: &HeaderProtectionKey, sample: &[u8; 16]) -> crate::Result<[u8; 5]> {
-      key.new_mask(sample).map_err(|_err| {
-        core::hint::cold_path();
-        crate::Error::from(CryptoError::InvalidHeaderProtection)
-      })
-    }
-  };
-}
-
-#[cfg(any(feature = "crypto-alr", feature = "crypto-ring"))]
 macro_rules! common_hkdf_functions {
   ($krate:ident) => {
     #[inline]

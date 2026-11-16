@@ -50,8 +50,10 @@ pub mod net;
 #[cfg(feature = "odf")]
 pub mod odf;
 pub mod pool;
+/// QUIC version 1 (RFC 9000, 9001, 9002): the nyseion-quic crate, whose transport the HTTP/3 server
+/// framework runs on.
 #[cfg(feature = "quic")]
-pub mod quic;
+pub use nyseion_quic as quic;
 pub mod rng;
 #[cfg(feature = "secret")]
 pub mod secret;

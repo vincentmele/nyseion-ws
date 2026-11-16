@@ -47,14 +47,8 @@ use crate::{
       router_handler::{FwRouter, RouterHandler},
     },
   },
-  http3::{H3App, H3ErrorCode, H3Params},
-  quic::{
-    DatagramMeta, Endpoint, EndpointKeys, FlushOutcome, QuicApp, QuicLimits, QuicParams,
-    RecvOutcome, WorkerLoads, steering_cbpf,
-  },
   rng::{CryptoRng, CryptoSeedableRng},
   sync::{Arc, AtomicBool, AtomicUsize, CachePadded, SyncMutex},
-  tls::{TlsConfig, TlsCtxSk},
 };
 use alloc::vec::Vec;
 use core::{
@@ -66,6 +60,11 @@ use core::{
   task::{Context, Poll},
   time::Duration,
 };
+use nyseion_h3::{H3ErrorCode, H3Params, H3Server};
+use nyseion_quic::{
+  DatagramMeta, Endpoint, EndpointKeys, FlushOutcome, QuicApp, QuicLimits, QuicParams, RecvOutcome,
+  WorkerLoads, rustls::RustlsConfig, steering_cbpf,
+};
 use std::time::Instant;
 
 /// A worker trims its pools once it has had no connection for this long.
@@ -74,8 +73,13 @@ pub(crate) const IDLE_TRIM_AFTER: Duration = Duration::from_secs(1);
 // their closing period before the worker stops anyway
 const SHUTDOWN_LINGER: Duration = Duration::from_secs(5);
 
+/// The `Arc` of the standard library, which nyseion-quic takes (the endpoint's keys, loads and TLS
+/// configuration).
+#[allow(clippy::disallowed_types, reason = "nyseion-quic takes the standard `Arc`")]
+pub(crate) type StdArc<T> = alloc::sync::Arc<T>;
+
 /// What a worker is given.
-pub(crate) struct WorkerParams<DA, EC, EN, ER, M, RNG, TCX> {
+pub(crate) struct WorkerParams<DA, EC, EN, ER, M, RNG> {
   pub(crate) addr: SocketAddr,
   pub(crate) content_length: bool,
   pub(crate) cpu: Option<usize>,
@@ -86,8 +90,8 @@ pub(crate) struct WorkerParams<DA, EC, EN, ER, M, RNG, TCX> {
   pub(crate) error_cb: EC,
   pub(crate) reuse_data: bool,
   pub(crate) h3_params: H3Params,
-  pub(crate) keys: Arc<EndpointKeys>,
-  pub(crate) loads: Arc<WorkerLoads>,
+  pub(crate) keys: StdArc<EndpointKeys>,
+  pub(crate) loads: StdArc<WorkerLoads>,
   pub(crate) quic_params: QuicParams,
   /// The generator of the worker, derived from the one of the process.
   pub(crate) rng: RNG,
@@ -97,7 +101,7 @@ pub(crate) struct WorkerParams<DA, EC, EN, ER, M, RNG, TCX> {
   pub(crate) stats: Arc<[CachePadded<StatsCell>]>,
   #[cfg(test)]
   pub(crate) test: crate::http::http3_server_framework::tests::TestHooks,
-  pub(crate) tls: Arc<TlsConfig<TCX>>,
+  pub(crate) tls: StdArc<RustlsConfig>,
   pub(crate) udp_params: UdpParams,
   pub(crate) worker: u8,
   pub(crate) workers: u8,
@@ -208,7 +212,7 @@ pub(crate) fn cpu_order() -> crate::Result<Vec<usize>> {
 
 /// Pins the thread of the worker to its CPU, if it has one. A failure is reported to the error
 /// callback, and the worker runs unpinned.
-pub(crate) fn pin<DA, EC, EN, ER, M, RNG, TCX>(params: &WorkerParams<DA, EC, EN, ER, M, RNG, TCX>)
+pub(crate) fn pin<DA, EC, EN, ER, M, RNG>(params: &WorkerParams<DA, EC, EN, ER, M, RNG>)
 where
   EC: Fn(ER),
   ER: From<crate::Error>,
@@ -221,8 +225,8 @@ where
 }
 
 /// Runs the worker of `params` until its server shuts down.
-pub(crate) async fn run<DA, EC, EN, ER, M, RNG, TCX>(
-  params: WorkerParams<DA, EC, EN, ER, M, RNG, TCX>,
+pub(crate) async fn run<DA, EC, EN, ER, M, RNG>(
+  params: WorkerParams<DA, EC, EN, ER, M, RNG>,
 ) -> Result<(), WorkerEnd<ER>>
 where
   DA: Clone + 'static,
@@ -231,7 +235,6 @@ where
   ER: From<crate::Error> + 'static,
   M: Middleware<DA, ER> + 'static,
   RNG: CryptoRng + CryptoSeedableRng,
-  TCX: TlsCtxSk,
 {
   let WorkerParams {
     addr,
@@ -296,22 +299,23 @@ where
     let grace_ms = u64::try_from(drain.as_millis()).unwrap_or(u64::MAX);
     quic = quic.set_limits(QuicLimits { shutdown_grace_ms: grace_ms, ..*quic.limits() });
   }
-  let endpoint = Endpoint::<App<DA, EC, EN, ER, M>, RNG, TCX>::new(
+  let endpoint = Endpoint::<App<DA, EC, EN, ER, M>>::new(
     quic,
     worker,
     workers,
     tls,
-    &mut rng,
+    &mut QuicRng(&mut rng),
     Some(loads),
     keys,
-  )?;
+  )
+  .map_err(crate::Error::from)?;
   let handler = RouterHandler::new(
     (data, reuse_data),
     (content_length, date),
     FwRouter::new(router),
     error_cb.clone(),
   )?;
-  let app = H3App::new(handler, h3_params);
+  let app = H3Server::new(handler, h3_params);
   #[cfg(test)]
   let idle_trim_after = test.idle_trim_after.unwrap_or(IDLE_TRIM_AFTER);
   #[cfg(not(test))]
@@ -388,8 +392,8 @@ fn bind_in_order(
 /// fits an entry of the inbox (ruling T16-b). A segment that the inbox does not take (full, its
 /// socket gone), or that has no worker, is dropped, and the endpoint gives back the place that it
 /// took on that worker (ruling T14-e). Returns `false` if a segment was dropped.
-pub(crate) fn forward<A, RNG, TCX>(
-  endpoint: &mut Endpoint<A, RNG, TCX>,
+pub(crate) fn forward<A>(
+  endpoint: &mut Endpoint<A>,
   inboxes: &[UdpInbox],
   datagram: &[u8],
   meta: DatagramMeta,
@@ -397,8 +401,6 @@ pub(crate) fn forward<A, RNG, TCX>(
 ) -> bool
 where
   A: QuicApp,
-  RNG: CryptoRng + CryptoSeedableRng,
-  TCX: TlsCtxSk,
 {
   let inbox = inboxes.get(usize::from(worker));
   let segment = meta.segment_size.map_or(datagram.len(), usize::from).max(1);
@@ -425,10 +427,23 @@ where
   all
 }
 
-type App<DA, EC, EN, ER, M> = H3App<RouterHandler<FwRouter<DA, EN, ER, M>, EC>>;
+type App<DA, EC, EN, ER, M> = H3Server<RouterHandler<FwRouter<DA, EN, ER, M>, EC>>;
+
+/// A generator of nyseion-ws as the generator that the QUIC endpoint draws from.
+pub(crate) struct QuicRng<'rng, RNG>(pub(crate) &'rng mut RNG);
+
+impl<RNG> nyseion_quic::rng::Rng for QuicRng<'_, RNG>
+where
+  RNG: CryptoRng,
+{
+  #[inline]
+  fn fill_slice(&mut self, slice: &mut [u8]) {
+    self.0.fill_slice(slice);
+  }
+}
 
 /// The state of the task of a worker.
-struct Task<DA, EC, EN, ER, M, RNG, TCX>
+struct Task<DA, EC, EN, ER, M>
 where
   DA: Clone + 'static,
   EC: Fn(ER),
@@ -437,7 +452,7 @@ where
   M: Middleware<DA, ER> + 'static,
 {
   app: App<DA, EC, EN, ER, M>,
-  endpoint: Endpoint<App<DA, EC, EN, ER, M>, RNG, TCX>,
+  endpoint: Endpoint<App<DA, EC, EN, ER, M>>,
   epoch: Instant,
   error_cb: EC,
   forward_dropped: u64,
@@ -463,15 +478,13 @@ where
   worker: u8,
 }
 
-impl<DA, EC, EN, ER, M, RNG, TCX> Task<DA, EC, EN, ER, M, RNG, TCX>
+impl<DA, EC, EN, ER, M> Task<DA, EC, EN, ER, M>
 where
   DA: Clone + 'static,
   EC: Clone + Fn(ER) + 'static,
   EN: EndpointNode<DA, ER, Http3ManualStream> + 'static,
   ER: From<crate::Error> + 'static,
   M: Middleware<DA, ER> + 'static,
-  RNG: CryptoRng + CryptoSeedableRng,
-  TCX: TlsCtxSk,
 {
   // The microseconds since the clock of the process started.
   fn now_us(&self) -> u64 {
@@ -576,7 +589,6 @@ where
     self.endpoint.trim_idle();
     self.app.trim_idle();
     self.app.handler.trim_idle();
-    crate::tls::trim_idle_pools();
     #[cfg(test)]
     if let Some(elem) = &self.trims {
       let after = self.pool_sizes();
@@ -587,26 +599,23 @@ where
   }
 
   // The bytes of the pools of the worker (the memory budget of spec section 5.4): the QUIC pools,
-  // the HTTP/3 boxes, the request buffers and slots of the handler and the TLS states of the thread.
+  // the HTTP/3 boxes and response buffers, and the request buffers and slots of the handler. TLS
+  // keeps no state between handshakes (rustls).
   #[cfg(all(feature = "_h3-loopback-client", feature = "http3-server-framework"))]
   fn pool_bytes(&self) -> u64 {
     let bytes = self
       .endpoint
       .pool_bytes()
-      .saturating_add(self.app.bytes())
-      .saturating_add(self.app.handler.bytes())
-      .saturating_add(crate::tls::pooled_state_bytes());
+      .saturating_add(self.app.pooled_bytes())
+      .saturating_add(self.app.scratch_bytes())
+      .saturating_add(self.app.handler.bytes());
     u64::try_from(bytes).unwrap_or(u64::MAX)
   }
 
   // The sizes of the pools that an idle trim frees down.
   #[cfg(test)]
   fn pool_sizes(&self) -> PoolSizes {
-    PoolSizes {
-      quic_conns: self.endpoint.pools().conn_cold.len(),
-      tls_states: crate::tls::pooled_states(),
-      h3_conns: self.app.pooled(),
-    }
+    PoolSizes { quic_bytes: self.endpoint.pool_bytes(), h3_conns: self.app.pooled() }
   }
 
   // Begins the shutdown of the endpoint once its signal is triggered.

@@ -6,8 +6,8 @@
 //!
 //! After a warm-up that reaches the measured steady state (the connections open, the streams in
 //! flight), a keep-alive load of `/baseline2` or `/static` allocates nothing on the server's
-//! thread, and opening, serving and closing a connection allocates only the crypto backend's
-//! [`CRYPTO_PER_HANDSHAKE`] (ring's RSA signature).
+//! thread, and opening, serving and closing a connection allocates only in the TLS handshake:
+//! rustls (nyseion-quic's TLS) and its crypto backend, at most [`TLS_PER_HANDSHAKE`] allocations.
 //!
 //! A counting global allocator counts the allocations of the threads that were told to (the
 //! worker thread of each test server, from its local-runtime callback), each server in its own
@@ -54,11 +54,21 @@ const CONNS: usize = 64;
 const DEPTH: usize = 64;
 /// Connections opened before counting in the churn test, and counted.
 const CHURN_WARMUP: usize = 100;
+/// The requests of a connection of the churn test's warm-up, each a section of its own: as many as
+/// the QPACK decode memo of a connection keeps. nyseion-qpack's memo adds entries up to its capacity
+/// (8 sections, nyseion-h3) before it uses those that the reset for the next connection emptied, so
+/// a pooled connection state is warm once a connection decoded that many sections in it (the
+/// in-tree memo of nyseion-ws, a fixed array, was warm after one).
+const CHURN_WARM_SECTIONS: usize = 8;
 const CHURN_CONNS: usize = 200;
 /// The connections of the burst that warms the churn test up, open at once.
 const BURST: usize = 64;
-/// The allocations of the crypto backend that one RSA handshake signature takes (ring).
-const CRYPTO_PER_HANDSHAKE: u64 = 9;
+/// The allocations that one handshake takes in TLS, measured (14 Nov 2026, rustls 0.23 with the
+/// RSA-2048 certificate of the arena): 82 in rustls, 5 in nyseion-quic's adapter of it (the session
+/// and its transport parameters, the boxes of the connection's TLS state and of its key updater)
+/// and 9 in the crypto backend (ring's RSA signature), every handshake the same. The in-tree TLS
+/// of nyseion-ws pooled its handshake state and took the 9 of the signature alone.
+const TLS_PER_HANDSHAKE: u64 = 96;
 /// Where the certificate pair is, unless `CERT_DIR` says.
 const CERT_DIR: &str = "/mnt/nvme1tb/claude-tmp/arena-main/certs";
 /// The dataset, unless `DATASET_PATH` says.
@@ -242,11 +252,12 @@ unsafe impl GlobalAlloc for CountingAlloc {
 static GLOBAL: CountingAlloc = CountingAlloc;
 
 /// Who an allocation is charged to: the innermost frame of its backtrace that belongs to one of
-/// these. `Core` is the sans-I/O QUIC and HTTP/3 code, `Framework` the HTTP/3 server framework
-/// (its router handler and the static files), `Driver` the framework's endpoint task (the loop of
-/// a worker), `App` the arena's endpoints, `Executor` the io_uring runtime (sockets, timers, the
-/// UDP ring) and `Tls` the handshake state machine. The crypto backend's own frames are charged to
-/// it, not to the TLS code that called it.
+/// these. `Core` is the sans-I/O QUIC, HTTP/3 and QPACK code (nyseion-quic, nyseion-h3, nyseion-qpack),
+/// `Framework` the HTTP/3 server framework (its router handler and the static files), `Driver` the
+/// framework's endpoint task (the loop of a worker), `App` the arena's endpoints, `Executor` the
+/// io_uring runtime (sockets, timers, the UDP ring) and `Tls` the handshake: rustls and
+/// nyseion-quic's adapter of it. The crypto backend's own frames are charged to it, not to the TLS
+/// code that called it.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum Owner {
   Core,
@@ -264,10 +275,16 @@ enum Owner {
 impl Owner {
   /// The owner of a frame of the function `path` (without its generics), if any.
   fn of_path(path: &str) -> Option<Self> {
-    const OWNERS: [(&str, Owner); 11] = [
+    const OWNERS: [(&str, Owner); 16] = [
       ("ring::", Owner::Crypto),
-      ("nyseion_ws::quic::", Owner::Core),
-      ("nyseion_ws::http3::", Owner::Core),
+      ("rustls::", Owner::Tls),
+      ("nyseion_quic::rustls::", Owner::Tls),
+      ("nyseion_quic::conn_tls::", Owner::Tls),
+      // The box of the key updater that TLS hands over when the handshake ends
+      ("nyseion_quic::key_phase::KeyPhase::set_updater", Owner::Tls),
+      ("nyseion_quic::", Owner::Core),
+      ("nyseion_h3::", Owner::Core),
+      ("nyseion_qpack::", Owner::Core),
       ("nyseion_ws::http::http3_server_framework::endpoint_task::", Owner::Driver),
       ("nyseion_ws::http::http3_server_framework::", Owner::Framework),
       ("nyseion_ws::http::static_files::", Owner::Framework),
@@ -297,6 +314,11 @@ impl Owner {
       let path = name.split(['<', ' ']).next().unwrap_or(name);
       let path = path.replace('>', "");
       let path = path.trim_end_matches(':');
+      // The box of the TLS state of a new connection (nyseion-quic's `ConnTls`), the one allocation
+      // that the endpoint makes itself when it opens a connection
+      if path == "nyseion_quic::endpoint::Endpoint" && name.ends_with(">::open") {
+        return (Owner::Tls, "nyseion_quic::endpoint::Endpoint::open".to_owned());
+      }
       if let Some(owner) = Self::of_path(path) {
         return (owner, path.to_owned());
       }
@@ -610,7 +632,8 @@ fn h3_static_requests_allocate_nothing_after_warmup() {
 /// What a churn window allocated on the server's thread.
 struct Churn {
   conns: usize,
-  /// The allocations of the crypto backend that each counted connection took.
+  /// The allocations of TLS (rustls, its adapter, the crypto backend) that each counted connection
+  /// took.
   crypto: Vec<u64>,
   /// The most connections the worker held at once in the window (as sampled after each), and in
   /// the warm-up.
@@ -650,9 +673,17 @@ impl Churn {
 
 /// A connection that sends a baseline request and closes.
 fn serve_one(served: &Served) {
+  serve_sections(served, 1);
+}
+
+/// A connection that sends `sections` baseline requests, each a field section of its own (the
+/// first that of [`serve_one`]), and closes.
+fn serve_sections(served: &Served, sections: usize) {
   let mut client = served.client();
-  let reply = client.get(&baseline(3).0).unwrap();
-  assert_eq!((reply.status, reply.body.as_slice()), (200, baseline(3).1.to_string().as_bytes()));
+  for n in (0..sections).map(|el| el + 3) {
+    let reply = client.get(&baseline(n).0).unwrap();
+    assert_eq!((reply.status, reply.body.as_slice()), (200, baseline(n).1.to_string().as_bytes()));
+  }
   client.close().unwrap();
 }
 
@@ -681,9 +712,12 @@ fn churn(counts: &'static Counts, served: &Served, (warm, conns): (usize, usize)
     served.wait("burst closed", |el| el.conns == 0);
   }
   for _ in 0..warm {
-    serve_one(served);
+    serve_sections(served, CHURN_WARM_SECTIONS);
     warm_peak = warm_peak.max(held(served));
   }
+  // Every connection of the warm-up closed: each pool has held all that the warm-up made at once,
+  // as at the end of the window (the free lists of nyseion-quic's and nyseion-h3's pools grow then)
+  served.wait("warm-up closed", |el| el.conns == 0);
   // The symbols are loaded once here, not in the middle of a connection of the server
   let _ = std::backtrace::Backtrace::force_capture().to_string();
   counts.sites.lock().unwrap().clear();
@@ -697,7 +731,8 @@ fn churn(counts: &'static Counts, served: &Served, (warm, conns): (usize, usize)
     // The handshake signature is made before the server answers: its allocations are in the sites
     // by now
     let sites = counts.sites.lock().unwrap();
-    crypto.push(sites.iter().skip(before).filter(|el| el.0 == Owner::Crypto).count() as u64);
+    let tls = |owner: Owner| matches!(owner, Owner::Crypto | Owner::Tls);
+    crypto.push(sites.iter().skip(before).filter(|el| tls(el.0)).count() as u64);
     drop(sites);
     peak = peak.max(held(served));
   }
@@ -715,19 +750,23 @@ fn churn(counts: &'static Counts, served: &Served, (warm, conns): (usize, usize)
 }
 
 #[test]
-fn h3_connection_churn_allocates_only_crypto_budget() {
+fn h3_connection_churn_allocates_only_tls_budget() {
   let counts = Counts::leak();
   let served = Served::new(counts);
   let warmed = warmup(CHURN_WARMUP) > 0;
   let churn = churn(counts, &served, (warmup(CHURN_WARMUP), CHURN_CONNS));
   let report = churn.report();
-  eprintln!("churn per connection:\n{report}");
+  eprintln!(
+    "churn per connection (peak {}, warm-up peak {}):\n{report}",
+    churn.peak, churn.warm_peak
+  );
   let owners = churn.owners();
-  let other: u64 = owners.iter().filter(|el| *el.0 != Owner::Crypto).map(|el| el.1.0).sum();
-  assert_eq!(other, 0, "allocations outside the crypto backend after the warm-up:\n{report}");
-  // Each handshake took at most the 9 of ring's RSA signature
+  let other: u64 =
+    owners.iter().filter(|el| !matches!(*el.0, Owner::Crypto | Owner::Tls)).map(|el| el.1.0).sum();
+  assert_eq!(other, 0, "allocations outside TLS after the warm-up:\n{report}");
+  // Each handshake took at most the TLS budget
   let worst = churn.crypto.iter().copied().max().unwrap_or(0);
-  assert!(worst <= CRYPTO_PER_HANDSHAKE, "a handshake took {worst} crypto allocations:\n{report}");
+  assert!(worst <= TLS_PER_HANDSHAKE, "a handshake took {worst} TLS allocations:\n{report}");
   // The warm-up held as many connections at once as the window did, so that a pool does not grow
   // in the window for want of a warm-up that was smaller than it
   assert!(
@@ -765,7 +804,10 @@ fn counting_is_live_on_server_threads() {
   );
   // The classification of frames
   assert_eq!(Owner::of_path("ring::rsa::signing::sign"), Some(Owner::Crypto));
-  assert_eq!(Owner::of_path("nyseion_ws::quic::conn::flush"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("nyseion_quic::conn::flush"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("nyseion_h3::server::parse"), Some(Owner::Core));
+  assert_eq!(Owner::of_path("rustls::server::hs::start"), Some(Owner::Tls));
+  assert_eq!(Owner::of_path("nyseion_quic::rustls::new_session"), Some(Owner::Tls));
   assert_eq!(
     Owner::of_path("nyseion_ws::http::http3_server_framework::endpoint_task::turn"),
     Some(Owner::Driver)

@@ -83,8 +83,6 @@ pub(crate) fn trim_idle_pools() {
         elem.bytes = total;
       }
     });
-    #[cfg(feature = "quic")]
-    crate::tls::quic_tls::trim_idle_states();
   }
 }
 

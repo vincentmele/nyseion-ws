@@ -28,6 +28,11 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 nyseion-ws-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
+# The QUIC transport, HTTP/3 and QPACK crates (Apache-2.0), from github.com/nyseion; Cargo.lock pins
+# the commits
+nyseion-h3 = { default-features = false, features = ["rustls", "std"], optional = true, git = "https://github.com/nyseion/nyseion-quic" }
+nyseion-qpack = { default-features = false, features = ["std"], optional = true, git = "https://github.com/nyseion/nyseion-qpack" }
+nyseion-quic = { default-features = false, features = ["rustls"], optional = true, git = "https://github.com/nyseion/nyseion-quic" }
 zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 zmij = { default-features = false, optional = true, version = "1.0" }
@@ -65,6 +70,9 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 
 [dev-dependencies]
 miniz_oxide = { default-features = false, features = ["with-alloc"], version = "0.8" }
+# The in-process HTTP/3 harness of nyseion-h3 (its test client's application and response parser),
+# for the tests of the HTTP/3 server framework
+nyseion-h3 = { default-features = false, features = ["__fuzz", "rustls", "std"], git = "https://github.com/nyseion/nyseion-quic" }
 nyseion-ws = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]
@@ -76,7 +84,7 @@ ccadb = ["x509"]
 client-api-framework = []
 crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel?/std", "std"]
 crypto = []
-crypto-alr = ["dep:aws-lc-rs", "crypto"]
+crypto-alr = ["dep:aws-lc-rs", "crypto", "nyseion-quic?/aws-lc-rs"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
 crypto-ruco = [
   "dep:aead",
@@ -119,7 +127,7 @@ crypto-ruco = [
   "dep:spki",
   "dep:x25519-dalek",
 ]
-crypto-ring = ["crypto", "dep:ring", "ring?/alloc"]
+crypto-ring = ["crypto", "dep:ring", "ring?/alloc", "nyseion-quic?/ring"]
 database = []
 database-tests = ["macros", "postgres", "schema-manager-dev"]
 default = []
@@ -140,7 +148,7 @@ http1-server-framework = ["dep:nyseion-http1", "http", "io-uring", "tls"]
 http2 = ["foldhash", "hashbrown", "http", "tls"]
 http2-client-pool = ["http2", "std"]
 http2-server-framework = ["http2"]
-http3 = ["http", "quic"]
+http3 = ["http", "quic", "dep:nyseion-h3", "dep:nyseion-qpack"]
 http3-server-framework = ["http2-server-framework", "http3", "io-uring"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
@@ -162,11 +170,9 @@ portable-atomic = ["dep:portable-atomic", "portable-atomic?/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
 postgres = ["crypto", "database", "foldhash", "hashbrown", "tls"]
 postgres-pool = ["postgres", "secret"]
-# QUIC seals and opens every packet and protects its headers (RFC 9001 section 5.4), which only
-# `crypto-ring`, `crypto-alr` and `crypto-ruco` provide: `crypto-graviola` has no header protection,
-# and with one of the others that one protects the headers. A connection is at most 4 KiB with
-# `crypto-ring`; the expanded keys of `crypto-ruco` make it about 6.4 KiB.
-quic = ["tls", "foldhash", "hashbrown"]
+# QUIC (nyseion-quic, its TLS on rustls): its packet keys and rustls's provider come from `crypto-ring`
+# or `crypto-alr` (aws-lc-rs), one of which must be on.
+quic = ["dep:nyseion-quic", "std"]
 quick-protobuf = ["dep:quick-protobuf", "quick-protobuf?/std", "std"]
 rand_core = ["dep:rand_core"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal?/maths"]
@@ -194,11 +200,9 @@ zlib-rs = ["dep:zlib-rs", "zlib-rs?/rust-allocator"]
 
 _bench = []
 _fuzz = ["web-socket"]
-# Test-only, not a public API: the connection fuzz targets and their test client
-_fuzz-conn = ["_fuzz", "_h3-loopback-client", "quic"]
 # Test-only, not a public API: the HTTP/3 client of `http3::loopback_client`, for the in-process
 # tests of binaries (wtx-internal enables it through its dev-dependencies only)
-_h3-loopback-client = ["http3", "std"]
+_h3-loopback-client = ["http3", "std", "nyseion-quic?/client"]
 _hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std"] # Does not decide for downstream users
 _integration-tests = ["ccadb", "serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]

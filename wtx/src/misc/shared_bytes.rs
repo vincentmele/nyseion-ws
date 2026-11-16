@@ -55,4 +55,21 @@ impl SharedBytes {
   pub(crate) fn strong_count(&self) -> usize {
     Arc::strong_count(&self.bytes)
   }
+
+  /// The same bytes as a [`nyseion_quic::SharedBytes`], for a QUIC stream that sends them by
+  /// reference: the buffer moves, nothing is copied and no count changes when the range is the
+  /// whole buffer. With `portable-atomic-util`, whose `Arc` is another type, the bytes are copied.
+  #[cfg(feature = "http3-server-framework")]
+  #[inline]
+  pub(crate) fn into_quic(self) -> nyseion_quic::SharedBytes {
+    cfg_select! {
+      feature = "portable-atomic-util" => nyseion_quic::SharedBytes::from_slice(self.as_slice()),
+      _ => {
+        let whole = self.start == 0 && self.end == self.bytes.len();
+        let Self { bytes, end, start } = self;
+        let quic = nyseion_quic::SharedBytes::new(Arc::into_std(bytes));
+        if whole { quic } else { quic.slice(start, end) }
+      }
+    }
+  }
 }

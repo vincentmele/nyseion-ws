@@ -64,6 +64,7 @@ use nyseion_ws::{
     http3_server_framework::{Http3ServerFramework, Http3Stats, Http3WorkerStats},
   },
   misc::JsonWriter,
+  quic::rustls::RustlsConfig,
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::Arc,
   tls::TlsConfig,
@@ -208,10 +209,15 @@ where
 {
   let H3Run { addr, knobs, local_runtimes, shutdown, static_root, test_routes } = run;
   let min_headers = knobs.headers == knobs::Headers::Min;
-  let mut framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _, _>::new(
+  let tls = RustlsConfig::builder()
+    .cert_chain_pem(cert)
+    .private_key_pem(&key)
+    .build()
+    .map_err(|err| nyseion_ws::Error::from(std::io::Error::other(err)))?;
+  let mut framework = Http3ServerFramework::<(), fn(nyseion_ws::Error), UringExecutor, _, _>::new(
     UringExecutor::default(),
     ChaCha20::from_std_random()?,
-    TlsConfig::from_keys_pem(cert, key.as_slice())?,
+    tls,
   )?
   .set_data(data)
   .set_error_cb(error_cb)

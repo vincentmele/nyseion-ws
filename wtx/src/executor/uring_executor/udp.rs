@@ -48,7 +48,6 @@ use crate::{
     KIND_UDP_SEND, Message, Reactor, bump, cancel_sqe, io_err, own_reactor, send_to_runtime,
     set_waker, user_data, with_reactor, write_sockaddr,
   },
-  quic::{DatagramMeta, STEERING_PROGRAM_LEN, SteeringProgram, TrainId, TxArena},
   sync::{Arc, AtomicBool, AtomicUsize, AtomicWaker, CachePadded},
 };
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
@@ -59,6 +58,7 @@ use core::{
   task::{Context, Poll, Waker},
 };
 use io_uring::{cqueue, opcode, types};
+use nyseion_quic::{DatagramMeta, STEERING_PROGRAM_LEN, SteeringProgram, TrainId, TxArena};
 use std::os::fd::{FromRawFd, RawFd};
 
 // A receive buffer starts with what the kernel writes before the payload: its header
@@ -262,7 +262,7 @@ impl UringUdpSocket {
   }
 
   /// Steers the datagrams of the socket's `SO_REUSEPORT` group with `program` (from
-  /// [`crate::quic::steering_cbpf`]): the program applies to every socket of the group, which
+  /// [`nyseion_quic::steering_cbpf`]): the program applies to every socket of the group, which
   /// it indexes in the order they bound.
   ///
   /// `SO_ATTACH_REUSEPORT_CBPF` exists since Linux 4.5, older than the io_uring this runtime
@@ -1757,7 +1757,6 @@ mod tests {
       uring_executor::udp::{UdpInbox, UdpParams, UringUdpSocket},
     },
     futures::Sleep,
-    quic::{DatagramMeta, TxArena, steering_cbpf},
   };
   use alloc::vec::Vec;
   use core::{
@@ -1767,6 +1766,7 @@ mod tests {
     task::Poll,
     time::Duration,
   };
+  use nyseion_quic::{DatagramMeta, TxArena, steering_cbpf};
   use std::os::fd::RawFd;
 
   const V4: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
@@ -2800,17 +2800,15 @@ mod tests {
 
 #[cfg(test)]
 mod miri {
-  use crate::{
-    executor::uring_executor::{
-      BufRing,
-      udp::{
-        Dropped, InboxQueue, RECV_CONTROL_LEN, RECV_HEADROOM, RECV_NAME_LEN, RECV_OUT_LEN,
-        SendDone, SendSlot, SendSlots, SendStep, SendWait, parse_recvmsg, prepare_send, put_cmsg,
-      },
+  use crate::executor::uring_executor::{
+    BufRing,
+    udp::{
+      Dropped, InboxQueue, RECV_CONTROL_LEN, RECV_HEADROOM, RECV_NAME_LEN, RECV_OUT_LEN, SendDone,
+      SendSlot, SendSlots, SendStep, SendWait, parse_recvmsg, prepare_send, put_cmsg,
     },
-    quic::{DatagramMeta, TxArena},
   };
   use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+  use nyseion_quic::{DatagramMeta, TxArena};
 
   // The flags of a CQE (`IORING_CQE_F_MORE`, `IORING_CQE_F_NOTIF`), which the io-uring crate
   // reads but does not export

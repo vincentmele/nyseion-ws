@@ -327,12 +327,10 @@ pub enum Error {
   /// Non-fatal HTTP/2 stream error
   #[cfg(feature = "http2")]
   Http2FlowControl(crate::http2::Http2Error, u32),
-  /// An HTTP/3 element is invalid or could not be written. Nothing is closed because of it.
+  /// An error of HTTP/3 or QPACK (nyseion-h3): an element refused, or a connection that must close
+  /// with an error code ([`nyseion_h3::Error::close_code`]).
   #[cfg(feature = "http3")]
-  Http3(crate::http3::Http3Error),
-  /// An HTTP/3 connection must be closed with the HTTP/3 or QPACK error code.
-  #[cfg(feature = "http3")]
-  Http3Close(crate::http3::H3ErrorCode, crate::http3::Http3Error),
+  Http3(nyseion_h3::Error),
   #[doc = associated_element_doc!()]
   Net(crate::net::NetError),
   #[cfg(feature = "postgres")]
@@ -343,13 +341,10 @@ pub enum Error {
   Postgres(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
   Queue(DequeueError),
-  /// A QUIC element is invalid or could not be written. Packets are dropped and no connection is
-  /// closed because of it.
+  /// An error of the QUIC transport (nyseion-quic): an element refused, a connection that must close
+  /// with a transport error code, the crypto backend or the TLS configuration.
   #[cfg(feature = "quic")]
-  Quic(crate::quic::QuicError),
-  /// A QUIC connection must be closed with the transport error code.
-  #[cfg(feature = "quic")]
-  QuicClose(crate::quic::TransportErrorCode, crate::quic::QuicError),
+  Quic(nyseion_quic::Error),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
   Router(crate::http::RouterError),
